@@ -1,0 +1,75 @@
+@page "/intern/zeiterfassung/buchungen"
+@attribute [Authorize]
+@inject IMitarbeiterService MitarbeiterService
+@layout Layout
+
+<style>
+    .view {
+        color: grey;
+        cursor: pointer;
+    }
+    .view-active {
+        color: #1274AC;
+        cursor: pointer;
+    }
+</style>
+
+@if (_isLoading)
+{
+    <ItreeSpinner />
+}
+else
+{
+    <div class="d-flex headerClass">
+        <div class="d-flex">
+            <div style="margin-right: 10px;">
+                <h3 class="text-gray-800">Zeiterfassung</h3>
+            </div>
+        </div>
+        @if (Benutzer!.IsAdmin)
+        {
+            <div>
+                <MudSelect @bind-Value="@_mitarbeiterId">
+                    @foreach (var item in _mitarbeiterList ?? new())
+                    {
+                        <MudSelectItem Value="item.Id">@item.Fullname</MudSelectItem>
+                    }
+                </MudSelect>
+            </div>
+        }
+    </div>
+
+    <ZeiterfassungTable MitarbeiterId="@_mitarbeiterId"/>
+}
+
+@code {
+    [CascadingParameter]
+    public Benutzer? Benutzer { get; set; }
+
+    // variables
+    private bool _isLoading = true;
+    private Guid _mitarbeiterId;
+
+    // properties
+    private List<Mitarbeiter>? _mitarbeiterList;
+
+    protected override void OnInitialized()
+    {
+        if (Benutzer == null)
+            throw new InvalidDataException("Benutzer is null");
+
+        if(Benutzer.MitarbeiterId == null)
+            throw new InvalidDataException("Benutzer.MitarbeiterId is null");
+
+        _mitarbeiterId = (Guid)Benutzer.MitarbeiterId;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _mitarbeiterList = await MitarbeiterService.GetAllActiveAsync();
+
+        _isLoading = false;
+        StateHasChanged();
+    }
+
+}

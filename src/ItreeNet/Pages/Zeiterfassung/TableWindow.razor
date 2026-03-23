@@ -1,0 +1,362 @@
+@inject IKundenService KundenService
+@inject IProjektService ProjektService
+@inject IVorgangService VorgangService
+@inject IBuchungsService BuchungsService
+
+@if (_loaded)
+{
+    <MudOverlay Visible="true" DarkBackground="true" ZIndex="1300">
+        <MudPaper Class="pa-4" Style="width:800px;max-width:95vw;max-height:90vh;overflow-y:auto;">
+            <MudText Typo="Typo.h6" Class="mb-3">Buchung bearbeiten</MudText>
+            @if (Buchung != null)
+            {
+                <EditForm OnValidSubmit="@Save" Model="@Buchung">
+                    <ItreeFluentValidationValidator Validator="@_validator" DisableAssemblyScanning="true" StrictMode="false" />
+
+                    @if (Buchung.Id == Guid.Empty)
+                    {
+                        <FormField Label="Tagesbuchung">
+                            <MudSwitch @bind-Value="@_singleBooking" Color="Color.Primary" />
+                        </FormField>
+                    }
+
+                    @if (_singleBooking)
+                    {
+                        <FormField Label="Datum">
+                            <MudDatePicker Date="@BuchungDatumAsDateTime" DateChanged="@OnBuchungDatumChanged" Editable="true" />
+                            <ValidationMessage For="(() => Buchung.Datum)" />
+                        </FormField>
+                    }
+                    else
+                    {
+                        <FormField Label="Datum von">
+                            <MudDatePicker Date="@BuchungDatumAsDateTime" DateChanged="@OnBuchungDatumChanged" Editable="true" />
+                            <ValidationMessage For="(() => Buchung.Datum)" />
+                        </FormField>
+
+                        <FormField Label="Datum bis">
+                            <MudDatePicker Date="@_dateToAsDateTime" DateChanged="@OnDateToChanged" Editable="true" />
+                        </FormField>
+                        @*ToDo: Validieren Datum bis muss nach Datum von sein*@
+                    }
+
+                    <FormField Label="Kunde">
+                        <div class="d-flex justify-content-between">
+                            <div style="width: 80%">
+                                <MudSelect Value="@_kundenId" id="customerSelected" Style="width:100%"
+                                           ValueChanged="@((Guid id) => GetProjectsByCustomerId(id))"
+                                           ToStringFunc="@(id => id == Guid.Empty ? "— Auswählen —" : _kunden?.FirstOrDefault(k => k.Id == id)?.Kundenname ?? id.ToString())">
+                                    <MudSelectItem Value="Guid.Empty">— Auswählen —</MudSelectItem>
+                                    @foreach (var item in _kunden ?? new())
+                                    {
+                                        <MudSelectItem Value="item.Id">@item.Kundenname</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </div>
+                            <div class="d-flex justify-content-between" style="min-width: 140px;">
+                                <div class="me-2 mt-1">
+                                    Alle Kunden
+                                </div>
+                                <MudSwitch Value="@_allCustomers" Color="Color.Primary" ValueChanged="@(async (bool val) => { _allCustomers = val; await OnSwitchChange(); })" Size="Size.Small" />
+                            </div>
+                        </div>
+                    </FormField>
+
+                    <FormField Label="Projekt">
+                        <MudSelect Value="@_projektId" id="projectSelected" Style="width:100%"
+                                   ValueChanged="@((Guid id) => GetProcessesByProjectId(id))"
+                                   ToStringFunc="@(id => id == Guid.Empty ? "— Auswählen —" : _projekte?.FirstOrDefault(p => p.Id == id)?.Bezeichnung ?? id.ToString())">
+                            <MudSelectItem Value="Guid.Empty">— Auswählen —</MudSelectItem>
+                            @foreach (var item in _projekte ?? new())
+                            {
+                                <MudSelectItem Value="item.Id">@item.Bezeichnung</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </FormField>
+
+                    <FormField Label="Vorgang">
+                        <MudSelect @bind-Value="@Buchung!.VorgangId" id="processSelected" Style="width:100%"
+                                   ToStringFunc="@(id => id == Guid.Empty ? "— Auswählen —" : _vorgaenge?.FirstOrDefault(v => v.Id == id)?.Bezeichnung ?? id.ToString())">
+                            <MudSelectItem Value="Guid.Empty">— Auswählen —</MudSelectItem>
+                            @foreach (var item in _vorgaenge ?? new())
+                            {
+                                <MudSelectItem Value="item.Id">@item.Bezeichnung</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <ValidationMessage For="(() => Buchung.VorgangId)" />
+                    </FormField>
+
+                    <FormField Label="Stunden">
+                        <MudSwitch @bind-Value="@Buchung!.Stunden" Color="Color.Primary" />
+                    </FormField>
+
+                    <FormField Label="Provisorisch">
+                        <MudSwitch @bind-Value="@Buchung!.Provisorisch" Color="Color.Warning" />
+                    </FormField>
+
+                    @if (Buchung!.Stunden)
+                    {
+                        <FormField Label="Zeit">
+                            <MudNumericField @bind-Value="@Buchung!.Zeit" Format="N2" />
+                            <ValidationMessage For="(() => Buchung.Zeit)" />
+                        </FormField>
+                    }
+                    else
+                    {
+                        <FormField Label="Zeit von">
+                            <MudTimePicker @bind-Time="@ZeitVonAsTimeSpan" MinuteSelectionStep="15" />
+                            <ValidationMessage For="(() => Buchung.ZeitVon)" />
+                        </FormField>
+
+                        <FormField Label="Zeit bis">
+                            <MudTimePicker @bind-Time="@ZeitBisAsTimeSpan" MinuteSelectionStep="15" />
+                            <ValidationMessage For="(() => Buchung.ZeitBis)" />
+                        </FormField>
+
+                        <FormField Label="Zeit">
+                            @if (Buchung!.ZeitVon != null && Buchung!.ZeitBis != null)
+                            {
+                                var zeitVon = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, Buchung.ZeitVon.Value.Hour, Buchung.ZeitVon.Value.Minute, 0);
+                                var zeitBis = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, Buchung.ZeitBis.Value.Hour, Buchung.ZeitBis.Value.Minute, 0);
+                                var hours = (zeitBis - zeitVon).TotalHours;
+                                var berechneteZeit = Convert.ToDecimal(hours.ToString("N2"));
+                                <MudNumericField Value="@berechneteZeit" ReadOnly="true" Format="N2" />
+                                <ValidationMessage For="(() => Buchung.Zeit)" />
+                            }
+                        </FormField>
+                    }
+
+                    <FormField Label="Buchungstext">
+                        <MudTextField @bind-Value="Buchung!.Buchungstext" Lines="4" />
+                        <ValidationMessage For="(() => Buchung.Buchungstext)" />
+                    </FormField>
+
+                    @if (_buttonIsLoading)
+                    {
+                        <ButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
+                            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
+                        </ButtonGroup>
+                    }
+                    else
+                    {
+                        <ButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
+                            <MudButton ButtonType="ButtonType.Submit" StartIcon="@Icons.Material.Filled.Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!HasChanges())">Speichern</MudButton>
+                            <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Cancel" Variant="Variant.Filled" Color="Color.Primary" OnClick="@CloseWindow">Abbrechen</MudButton>
+                        </ButtonGroup>
+                    }
+                </EditForm>
+            }
+
+            @*Confirm cancel when changes are not saved*@
+            <ConfirmWindow IsVisible="@_isVisibleCancelConfirm" CheckHandler="@CancelConfirm" Type="EnumConfirmType.Cancel" />
+        </MudPaper>
+    </MudOverlay>
+}
+
+@code {
+
+    [Parameter]
+    public EventCallback<List<Buchungstag>> OnValidSubmit { get; set; }
+    [Parameter]
+    public Buchung? Buchung { get; set; }
+    [Parameter]
+    public EventCallback<Buchung> BuchungChanged { get; set; }
+    [Parameter]
+    public bool ShowWeek { get; set; }
+    [Parameter]
+    public Guid MitarbeiterId { get; set; }
+
+    // properties
+    private Buchung? OriginalItem { get; set; }
+
+    // variables
+    private List<Kunde>? _kunden;
+    private List<Projekt>? _projekte;
+    private List<Vorgang>? _vorgaenge;
+    private Guid _kundenId;
+    private Guid _projektId;
+    private bool _allCustomers;
+    private bool _loaded;
+    private bool _isVisibleCancelConfirm;
+    private bool _singleBooking = true;
+    private BuchungValidator _validator = new();
+    private DateOnly _dateTo = DateOnly.FromDateTime(DateTime.Today);
+
+    private bool _buttonIsLoading = false;
+
+    // Bridge properties for MudDatePicker (uses DateTime?)
+    private DateTime? BuchungDatumAsDateTime => Buchung?.Datum.ToDateTime(new TimeOnly(0, 0, 0));
+    private DateTime? _dateToAsDateTime => _dateTo.ToDateTime(new TimeOnly(0, 0, 0));
+
+    // Bridge properties for MudTimePicker (uses TimeSpan? but ZeitVon/ZeitBis are DateTime?)
+    private TimeSpan? ZeitVonAsTimeSpan
+    {
+        get => Buchung?.ZeitVon?.TimeOfDay;
+        set { if (Buchung != null) Buchung.ZeitVon = value.HasValue ? DateTime.Today.Add(value.Value) : null; }
+    }
+    private TimeSpan? ZeitBisAsTimeSpan
+    {
+        get => Buchung?.ZeitBis?.TimeOfDay;
+        set { if (Buchung != null) Buchung.ZeitBis = value.HasValue ? DateTime.Today.Add(value.Value) : null; }
+    }
+
+    private void OnBuchungDatumChanged(DateTime? newValue)
+    {
+        if (Buchung != null && newValue.HasValue)
+            Buchung.Datum = DateOnly.FromDateTime(newValue.Value);
+    }
+
+    private void OnDateToChanged(DateTime? newValue)
+    {
+        if (newValue.HasValue)
+            _dateTo = DateOnly.FromDateTime(newValue.Value);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Buchung == null)
+            throw new InvalidDataException("Buchung is null");
+
+        OriginalItem = Buchung.Clone();
+        _kunden = await KundenService.GetAllActiveOfTeamAsync(MitarbeiterId, _allCustomers);
+        if (Buchung.VorgangId != Guid.Empty)
+        {
+            _kundenId = await GetCustomerId(Buchung.VorgangId);
+            _projektId = await GetProjectId(Buchung.VorgangId);
+            _projekte = await ProjektService.ProjectsByCustomerIdAsync(_kundenId);
+            _vorgaenge = await VorgangService.GetAllProjecIdAsync(_projektId);
+        }
+        else
+        {
+            await GetProjectsByCustomerId(_kundenId);
+            await GetProcessesByProjectId(_projektId);
+        }
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Buchung != null && !_loaded)
+        {
+            OriginalItem = Buchung.Clone();
+            _kunden = await KundenService.GetAllActiveOfTeamAsync(MitarbeiterId, _allCustomers);
+            if (Buchung.VorgangId != Guid.Empty)
+            {
+                _kundenId = await GetCustomerId(Buchung.VorgangId);
+                _projektId = await GetProjectId(Buchung.VorgangId);
+                _projekte = await ProjektService.ProjectsByCustomerIdAsync(_kundenId);
+                _vorgaenge = await VorgangService.GetAllProjecIdAsync(_projektId);
+            }
+            else
+            {
+                await GetProjectsByCustomerId(_kundenId);
+                await GetProcessesByProjectId(_projektId);
+            }
+            _loaded = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnSwitchChange()
+    {
+        _kunden = await KundenService.GetAllActiveOfTeamAsync(MitarbeiterId, _allCustomers);
+    }
+
+    private async Task<Guid> GetCustomerId(Guid vorgangId)
+    {
+        var kunde = await VorgangService.GetKundeFromVorgangIdAsnyc(vorgangId);
+        return kunde.Id;
+    }
+
+    private async Task<Guid> GetProjectId(Guid vorgangId)
+    {
+        var projekt = await VorgangService.GetProjektFromVorgangIdAsync(vorgangId);
+        return projekt.Id;
+    }
+
+    private async Task GetProjectsByCustomerId(Guid customerId)
+    {
+        _kundenId = customerId;
+        _projektId = Guid.Empty;
+        if (Buchung != null) Buchung.VorgangId = Guid.Empty;
+        _projekte = await ProjektService.ProjectsByCustomerIdAsync(customerId);
+        _vorgaenge = new List<Vorgang>();
+    }
+
+    private async Task GetProcessesByProjectId(Guid projektId)
+    {
+        _projektId = projektId;
+        if (Buchung != null) Buchung.VorgangId = Guid.Empty;
+        _vorgaenge = await VorgangService.GetAllProjecIdAsync(projektId);
+    }
+
+    public async Task Save()
+    {
+        _buttonIsLoading = true;
+        if (Buchung != null)
+        {
+            List<Buchungstag> newList;
+
+            if (Buchung.Id == Guid.Empty)
+            {
+                if (_singleBooking)
+                    newList = await BuchungsService.InsertBuchungAsync(Buchung, ShowWeek);
+                else
+                    newList = await BuchungsService.InsertBuchungenAsync(Buchung, ShowWeek, _dateTo);
+            }
+            else
+            {
+                newList = await BuchungsService.UpdateBuchungAsync(Buchung, ShowWeek);
+            }
+            _loaded = false;
+            OriginalItem = null;
+            Buchung = null;
+
+            await BuchungChanged.InvokeAsync(null);
+            await OnValidSubmit.InvokeAsync(newList);
+        }
+        _buttonIsLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task CloseWindow()
+    {
+        if (HasChanges())
+        {
+            _isVisibleCancelConfirm = true;
+        }
+        else
+        {
+            _loaded = false;
+            StateHasChanged();
+            OriginalItem = null;
+            Buchung = null;
+            await BuchungChanged.InvokeAsync(null);
+        }
+    }
+
+    private bool HasChanges()
+    {
+        var hasChanges = !BaseExtension.IsEqual(OriginalItem, Buchung);
+        return hasChanges;
+    }
+
+    /// <summary>
+    ///     Handler to confirm the canceling
+    /// </summary>
+    /// <param name="shouldCancel">Cancel or not</param>
+    async Task CancelConfirm(bool shouldCancel)
+    {
+        if (shouldCancel)
+        {
+            _loaded = false;
+            StateHasChanged();
+            OriginalItem = null;
+            Buchung = null;
+            await BuchungChanged.InvokeAsync(null);
+        }
+        _isVisibleCancelConfirm = false;
+        StateHasChanged();
+    }
+}

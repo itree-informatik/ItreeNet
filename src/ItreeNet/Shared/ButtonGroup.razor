@@ -1,0 +1,46 @@
+﻿
+<div class="@($"d-flex {Class} button-grp")" id="@Id" style="@CustomStyle">
+    @ChildContent
+</div>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+    [Parameter]
+    public EnumButtonGroupPosition Position { get; set; }
+    [Parameter]
+    public string? Id { get; set; }
+    [Parameter]
+    public string? CustomStyle { get; set; }
+    [Parameter]
+    public string? CustomClass { get; set; }
+
+    public string? Class { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (ChildContent == null)
+        {
+            throw new InvalidOperationException("ButtonGroup requires a Template.");
+        }
+
+        switch (Position)
+        {
+            case EnumButtonGroupPosition.Links:
+                Class = "justify-content-start button-grp-left";
+            break;
+            case EnumButtonGroupPosition.Mitte:
+                Class = "justify-content-center button-grp-center";
+                break;
+
+            case EnumButtonGroupPosition.Rechts:
+                Class = "justify-content-end button-grp-right";
+                break;
+        }
+
+        if (!string.IsNullOrEmpty(CustomClass))
+        {
+            Class += $" {CustomClass}";
+        }
+    }
+    }

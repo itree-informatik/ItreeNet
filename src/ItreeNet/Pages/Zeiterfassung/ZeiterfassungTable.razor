@@ -1,0 +1,563 @@
+@using System.Globalization
+@inject IBuchungsService BuchungsService
+@inject IAnwesenheitService AnwesenheitService
+@inject IPensumService PensumService
+@inject IKundenService KundenService
+@inject IProjektService ProjektService
+@inject IVorgangService VorgangService
+@layout Layout
+
+@if (_isLoading)
+{
+    <ItreeSpinner />
+}
+else
+{
+    <div class="d-flex justify-content-between" style="margin-bottom: 15px;">
+        <div class="d-flex" style="gap: 20px;">
+            <div>
+                <MudDatePicker Date="@_datePickerValueAsDateTime"
+                               DateChanged="@OnMudDatePickerChanged"
+                               Editable="true"
+                               DateFormat="dd.MM.yy"
+                               ShowWeekNumbers="true"
+                               MaxDate="@_max.ToDateTime(new TimeOnly(0, 0, 0))" />
+            </div>
+            <div style="width: 30vh;">
+                <MudIconButton OnClick="@(() => SelectDate("previousMonth"))" Icon="@Icons.Material.Filled.KeyboardDoubleArrowLeft" aria-label="Vorheriger Monat" Size="Size.Small" />
+                <MudIconButton OnClick="@(() => SelectDate("previousWeek"))" Icon="@Icons.Material.Filled.ChevronLeft" aria-label="Vorherige Woche" Size="Size.Small" />
+                <MudButton OnClick="@(() => SelectDate("today"))" Size="Size.Small">Heute</MudButton>
+                <MudIconButton OnClick="@(() => SelectDate("nextWeek"))" Icon="@Icons.Material.Filled.ChevronRight" aria-label="Nächste Woche" Size="Size.Small" />
+                <MudIconButton OnClick="@(() => SelectDate("nextMonth"))" Icon="@Icons.Material.Filled.KeyboardDoubleArrowRight" aria-label="Nächster Monat" Size="Size.Small" />
+            </div>
+        </div>
+        <div>
+            @*https://icons.getbootstrap.com*@
+            <span class="@(_showWeek ? "calendar-view" : "calendar-view-disabled")" title="Wochenansicht" @onclick="@(() => ChangeView("week"))">
+                <i class="bi-calendar-week"></i>
+            </span>
+            <span class="@(!_showWeek ? "calendar-view" : "calendar-view-disabled")" title="Monatsansicht" @onclick="@(() => ChangeView("month"))">
+                <i class="bi-calendar-month"></i>
+            </span>
+        </div>
+    </div>
+
+    if (_timeBookingList != null)
+    {
+        <table class="table table-striped @_tableTheme table-sm">
+            <thead>
+            <tr>
+                <td class="td-collaps">
+                    <div class="collaps" @onclick="@CollapsAll">
+                        <MudIcon Icon="@(_totalCollapsed ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)" Size="Size.Small"/>
+                    </div>
+                </td>
+                <td colspan="5">
+                    <div class="d-flex flex-row" style="gap: 50px;">
+                        <div style="width: 200px;">
+                            Wochenstunden gesamt:
+                        </div>
+                        <div class="d-flex flex-row" style="gap: 10px;">
+                            <span style="width: 40px; text-align: end; color: green;">@TimeBookingsTotalHours</span>
+                            <span>h</span>
+                        </div>
+                        <div class="d-flex flex-row" style="gap: 10px;">
+                            <span class="@(AnwesenheitTotalHours >= _pensum ? "hoursMet" : "hoursNotMet")" style="width: 40px; text-align: end;">@AnwesenheitTotalHours</span>
+                            <span>h / @_pensum h</span>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var daily in _timeBookingList)
+            {
+                <tr>
+                    <td class="td-collaps">
+                        <div class="collaps" @onclick="@(() => CollapsSingle(daily))">
+                            <MudIcon Icon="@(daily.IsCollapsed ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)" Size="Size.Small"/>
+                        </div>
+                    </td>
+                    <td colspan="5">
+                        <div class="d-flex flex-row" style="gap: 50px;">
+                            <div style="width: 200px;">
+                                @daily.Weekday
+                                <strong>(@daily.Date.ToString("dd.MM.yyyy"))</strong>
+                            </div>
+                            <div class="d-flex flex-row" style="gap: 10px;">
+                                <span style="width: 40px; color: green; text-align: end">@daily.TotalHours</span>
+                                <span>h</span>
+                            </div>
+                            <div class="d-flex flex-row pointer" style="gap: 5px; padding-left: 8px;" title="Anwesenheit bearbeiten" @onclick="@(() => OpenAnwesenheitWindow(daily.Date))">
+                                <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Color="Color.Primary" />
+                                <span style="color: dodgerblue;">@GetAnwesenheitStunden(daily.Date) h</span>
+                            </div>
+                            @{
+                                var details = daily.Details;
+                                if (details != null && details.Any(v => v.Vorgang != null && v.Vorgang.Gleitzeit))
+                                {
+                                    var stunden = details.Where(v => v.Vorgang != null && v.Vorgang.Gleitzeit);
+                                    <div>
+                                            Bezug Gleitzeit: @stunden.Sum(s => s.Zeit)
+                                    </div>
+                                }
+
+                                if (daily.FeiertagReduktion != null)
+                                {
+                                    <div>
+                                        Feiertagsreduktion: @daily.FeiertagReduktion h
+                                    </div>
+                                }
+                            }
+
+
+                        </div>
+                    </td>
+                </tr>
+
+                if (!daily.IsCollapsed)
+                {
+                    <tr>
+                        <td></td>
+                        <td colspan="5" style="padding: 0;">
+                                <table class="table table-default @_tableTheme table-sm" style="margin: 0;">
+                                <thead>
+                                <tr>
+                                    <td style="width: 200px;">Kunde</td>
+                                    <td style="width: 200px;">Projekt</td>
+                                    <td style="width: 200px;">Vorgang</td>
+                                    <td style="width: 50px;">Zeit</td>
+                                    <td>Buchungstext</td>
+                                    <td style="width: 120px; text-align: end;">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Add" Size="Size.Small" Class="button-xs" OnClick="@(() => OpenDialog("new", new Buchung(), daily))" />
+                                    </td>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @if (daily.Details != null)
+                                {
+                                    foreach (var buchung in daily.Details)
+                                    {
+                                        var changed = buchung.ChangedBy != null;
+                                        var tdclass = changed ? "tdHighlight" : string.Empty;
+                                        <tr>
+                                            <td class="@tdclass">@buchung.KundenName</td>
+
+                                            <td class="@tdclass">@buchung.ProjektName</td>
+
+                                            <td class="@tdclass">@buchung.Vorgang!.Bezeichnung</td>
+
+                                            <td class="@tdclass">@buchung.Zeit</td>
+
+                                            <td class="@tdclass">@buchung.Buchungstext</td>
+                                            <td class="@tdclass">
+                                                <div class="d-flex justify-content-end" style="gap: 2px;">
+                                                    @if (changed)
+                                                    {
+                                                        <MudTooltip>
+                                                            <TooltipContent>
+                                                                <table class="table table-borderless @_tableTheme tooltip-table">
+                                                                    @{
+                                                                        bool isNew = buchung.OriginalDatum == null && string.IsNullOrEmpty(buchung.OriginalZeit?.ToString()) && string.IsNullOrEmpty(buchung.OriginalText) && buchung.OriginalVorgang == null;
+                                                                    }
+                                                                    <tr><td colspan="1">Original Daten</td></tr>
+                                                                    @if (isNew)
+                                                                    {
+                                                                        <tr><td colspan="1">Keine Originaldaten vorhanden.</td></tr>
+                                                                        <tr><td colspan="1">Eintrag wurde neu erstellt.</td></tr>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        @if (buchung.OriginalDatum.HasValue)
+                                                                        {
+                                                                            <tr><td>Datum</td><td>@buchung.OriginalDatum.Value.ToString("d")</td></tr>
+                                                                        }
+                                                                        @if (buchung.OriginalVorgang != null)
+                                                                        {
+                                                                            @if (buchung.OriginalVorgang.Projekt?.Kunde != null)
+                                                                            {
+                                                                                <tr><td>Kunde</td><td>@buchung.OriginalVorgang.Projekt.Kunde.Kundenname</td></tr>
+                                                                            }
+                                                                            @if (buchung.OriginalVorgang.Projekt != null)
+                                                                            {
+                                                                                <tr><td>Projekt</td><td>@buchung.OriginalVorgang.Projekt.Bezeichnung</td></tr>
+                                                                            }
+                                                                            <tr><td>Aktivität</td><td>@buchung.OriginalVorgang.Bezeichnung</td></tr>
+                                                                        }
+                                                                        @if (!string.IsNullOrEmpty(buchung.OriginalZeit?.ToString()))
+                                                                        {
+                                                                            <tr><td>Zeit</td><td>@buchung.OriginalZeit</td></tr>
+                                                                        }
+                                                                        @if (!string.IsNullOrEmpty(buchung.OriginalText))
+                                                                        {
+                                                                            <tr><td>Text</td><td>@buchung.OriginalText</td></tr>
+                                                                        }
+                                                                    }
+                                                                    <tr><td colspan="1"><br/></td></tr>
+                                                                    <tr><td>Geändert von</td><td>@buchung.ChangedByMitarbeiter?.Fullname</td></tr>
+                                                                    <tr><td>Geändert am</td><td>@buchung.ChangedOn</td></tr>
+                                                                </table>
+                                                            </TooltipContent>
+                                                            <ChildContent>
+                                                                <i id="@buchung.Id" class="bi-question information-icon"></i>
+                                                            </ChildContent>
+                                                        </MudTooltip>
+                                                    }
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Class="button-xs" OnClick="@(() => OpenDialog("edit", buchung))" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Class="button-xs" OnClick="@(() => OpenDialog("delete", buchung))" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" Class="button-xs" OnClick="@(() => OpenDialog("copy", buchung))" />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td>Keine Buchungen vorhanden</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+
+        @if (SelectedItem != null)
+        {
+            <TableWindow OnValidSubmit="@OnSave" @bind-Buchung="@SelectedItem" ShowWeek="_showWeek" MitarbeiterId="@MitarbeiterId" />
+        }
+    }
+}
+
+@if (_showAnwesenheitWindow)
+{
+    <AnwesenheitWindow Datum="@_anwesenheitDatum" MitarbeiterId="@_mitarbeiterId"
+                       OnChanged="@OnAnwesenheitChanged" OnClosed="@(() => _showAnwesenheitWindow = false)" />
+}
+
+@*Confirm delete*@
+<ConfirmWindow IsVisible="@_isVisibleDeleteConfirm" CheckHandler="@DeleteConfirm" Type="EnumConfirmType.Delete" />
+
+@code {
+    [CascadingParameter]
+    public Benutzer? Benutzer { get; set; }
+
+    [Parameter]
+    public Guid MitarbeiterId { get; set; }
+
+    // properties
+    private decimal? TimeBookingsTotalHours => _timeBookingList != null ? _timeBookingList.Sum(x => x.TotalHours) : 0;
+    private decimal AnwesenheitTotalHours => _anwesenheitMap.Values.Sum();
+    private Buchung? SelectedItem { get; set; }
+    private Buchung? DeletedItem { get; set; }
+    private List<Buchungstag>? _timeBookingList;
+
+    // variables
+    private Guid _mitarbeiterId;
+    private List<Kunde>? _kunden;
+    private List<Projekt>? _projekte;
+    private List<Vorgang>? _vorgaenge;
+    private bool _totalCollapsed = true;
+    private decimal _pensum;
+    private bool _isLoading = true;
+    private bool _isVisibleDeleteConfirm;
+
+    // Anwesenheit
+    private Dictionary<DateOnly, decimal> _anwesenheitMap = new();
+    private bool _showAnwesenheitWindow;
+    private DateOnly _anwesenheitDatum;
+    private DateOnly _datePickerValue = GetWeekToDisplay(DateOnly.FromDateTime(DateTime.Today));
+    private DateOnly _max = DateOnly.FromDateTime(DateTime.Today.AddMonths(1));
+    private List<DateOnly> _storeDateTimes = new();
+    private bool _showWeek = true;
+
+    private string _tableTheme = "table-light";
+
+    // Bridge property for MudDatePicker which uses DateTime?
+    private DateTime? _datePickerValueAsDateTime => _datePickerValue.ToDateTime(new TimeOnly(0, 0, 0));
+
+    private async Task OnMudDatePickerChanged(DateTime? newValue)
+    {
+        if (newValue.HasValue)
+        {
+            _datePickerValue = DateOnly.FromDateTime(newValue.Value);
+            await GetTimeBookings();
+            await GetPensum();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Benutzer == null || Benutzer.MitarbeiterId == null)
+            throw new Exception("Kein Benutzer gefunden");
+
+        _tableTheme = $"table-{Benutzer.ThemeMode.ToString()!.ToLower()}";
+
+        _mitarbeiterId = MitarbeiterId;
+        await GetTimeBookings();
+
+        if (_timeBookingList == null)
+            throw new InvalidDataException("ZeiterfassungTable: TimeBookingList is null");
+
+        await GetPensum();
+        await GetKunden();
+        _isLoading = false;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (MitarbeiterId != _mitarbeiterId)
+        {
+            _mitarbeiterId = MitarbeiterId;
+            await GetPensum();
+            await GetTimeBookings();
+        }
+    }
+
+    #region Data
+
+    private async Task GetPensum()
+    {
+        if (_timeBookingList!.Count > 7)
+        {
+            _pensum = await PensumService.GetMonthlyWorkloadByEmployeeAsync(_mitarbeiterId, _timeBookingList.First().Date);
+        }
+        else
+        {
+            _pensum = await PensumService.GetWeeklyWorkloadByEmployeeAsync(_mitarbeiterId, _timeBookingList.First().Date);
+        }
+    }
+
+    private async Task GetKunden()
+    {
+        _kunden = await KundenService.GetAllActiveAsync();
+    }
+
+    private async Task GetProjekte(Guid? customerId)
+    {
+        _projekte = await ProjektService.ProjectsByCustomerIdAsync(customerId);
+        if (_vorgaenge != null)
+        {
+            _vorgaenge = new List<Vorgang>();
+        }
+    }
+
+    private async Task GetVoraenge(Guid? projectId)
+    {
+        _vorgaenge = await VorgangService.GetAllProjecIdAsync(projectId);
+    }
+
+    private void OnSave(List<Buchungstag> newList)
+    {
+        SelectedItem = null;
+        StoreUncollapsedDates();
+        _timeBookingList = newList;
+
+        // Update DatePicker
+        _datePickerValue = newList.OrderBy(t => t.Date).First().Date;
+
+        RestoreUncollapseddDates();
+        StateHasChanged();
+    }
+
+    private void StoreUncollapsedDates()
+    {
+        // store all uncollapsed dates
+        if (_timeBookingList != null)
+        {
+            _storeDateTimes = _timeBookingList.Where(t => !t.IsCollapsed).Select(t => t.Date).ToList();
+        }
+    }
+
+    private void RestoreUncollapseddDates()
+    {
+        // restore expanded on Buchungstag
+        foreach (var date in _storeDateTimes)
+        {
+            if (_timeBookingList != null)
+            {
+                var found = _timeBookingList.SingleOrDefault(t => t.Date == date);
+                if (found != null)
+                {
+                    found.IsCollapsed = false;
+                }
+            }
+        }
+    }
+
+    private async Task GetTimeBookings()
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        StoreUncollapsedDates();
+
+        _timeBookingList = await BuchungsService.GetBookingsByEmployeeAsync(_mitarbeiterId, _datePickerValue, _showWeek);
+
+        RestoreUncollapseddDates();
+        await LoadAnwesenheit();
+
+        _isLoading = false;
+        StateHasChanged();
+    }
+    private async Task LoadAnwesenheit()
+    {
+        if (_timeBookingList == null || !_timeBookingList.Any()) return;
+
+        var von = _timeBookingList.Min(t => t.Date);
+        var bis = _timeBookingList.Max(t => t.Date);
+
+        var records = await AnwesenheitService.GetByMitarbeiterAsync(_mitarbeiterId, von, bis);
+        _anwesenheitMap = records
+            .GroupBy(a => a.Datum)
+            .ToDictionary(g => g.Key, g => g.Sum(a => a.Zeit ?? 0m));
+    }
+
+    private decimal GetAnwesenheitStunden(DateOnly date)
+    {
+        return _anwesenheitMap.TryGetValue(date, out var stunden) ? stunden : 0m;
+    }
+
+    private void OpenAnwesenheitWindow(DateOnly date)
+    {
+        _anwesenheitDatum = date;
+        _showAnwesenheitWindow = true;
+    }
+
+    private async Task OnAnwesenheitChanged()
+    {
+        await LoadAnwesenheit();
+        StateHasChanged();
+    }
+
+    #endregion
+
+    #region Controlls
+
+    private void CollapsSingle(Buchungstag buchungstag)
+    {
+        buchungstag.IsCollapsed = !buchungstag.IsCollapsed;
+        StoreUncollapsedDates();
+        StateHasChanged();
+    }
+
+    private void CollapsAll()
+    {
+        if (_timeBookingList != null)
+        {
+            _totalCollapsed = !_totalCollapsed;
+            foreach (var timeBooking in _timeBookingList)
+            {
+                timeBooking.IsCollapsed = _totalCollapsed;
+            }
+        }
+        StateHasChanged();
+    }
+
+    private void OpenDialog(string type, Buchung buchung, Buchungstag? buchungstag = null)
+    {
+        switch (type)
+        {
+            case "new":
+                if (buchungstag == null)
+                    throw new InvalidDataException("Kein Buchungstag gefunden");
+
+                buchung.Vorgang = new();
+                buchung.Vorgang.Projekt = new();
+                buchung.Vorgang.Projekt.Kunde = new();
+                buchung.Datum = buchungstag.Date;
+                buchung.Zeit = 0;
+                buchung.Stunden = true;
+                buchung.MitarbeiterId = _mitarbeiterId;
+
+                SelectedItem = buchung.Clone();
+                break;
+            case "edit":
+                SelectedItem = buchung.Clone();
+                break;
+            case "delete":
+                DeletedItem = buchung;
+                _isVisibleDeleteConfirm = true;
+                break;
+            case "copy":
+                SelectedItem = buchung.Clone();
+                SelectedItem!.Id = Guid.Empty;
+                break;
+        }
+        StateHasChanged();
+    }
+
+    private async Task SelectDate(string type)
+    {
+        switch (type)
+        {
+            case "today":
+                _datePickerValue = DateOnly.FromDateTime(DateTime.Today);
+                break;
+            case "nextWeek":
+                _datePickerValue = _datePickerValue.AddDays(7);
+                break;
+            case "previousWeek":
+                _datePickerValue = _datePickerValue.AddDays(-7);
+                break;
+            case "nextMonth":
+                _datePickerValue = _datePickerValue.AddMonths(1);
+                break;
+            case "previousMonth":
+                _datePickerValue = _datePickerValue.AddMonths(-1);
+                break;
+        }
+        await GetTimeBookings();
+        await GetPensum();
+    }
+
+    private async Task ChangeView(string type)
+    {
+        switch (type)
+        {
+            case "month":
+                _showWeek = false;
+                break;
+            case "week":
+                _showWeek = true;
+                break;
+        }
+
+        await GetTimeBookings();
+        await GetPensum();
+    }
+
+    private static DateOnly GetWeekToDisplay(DateOnly date)
+    {
+        var startOfWeek = date.AddDays(
+            (int)CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek -
+            (int)date.DayOfWeek);
+
+        return startOfWeek;
+    }
+
+    // ### Confirm component functions ###
+
+    /// <summary>
+    ///     Handler for confirm the delete
+    /// </summary>
+    /// <param name="shouldDelete">DeleteAsync or not</param>
+    /// <returns></returns>
+    protected async Task DeleteConfirm(bool shouldDelete)
+    {
+        if (shouldDelete && DeletedItem != null)
+        {
+            StoreUncollapsedDates();
+            _timeBookingList = await BuchungsService.DeleteBuchungAsync(DeletedItem, _showWeek);
+            RestoreUncollapseddDates();
+        }
+        _isVisibleDeleteConfirm = false;
+        StateHasChanged();
+    }
+    #endregion
+
+}

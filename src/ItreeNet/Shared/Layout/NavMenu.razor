@@ -1,0 +1,134 @@
+﻿@using System.Reflection
+@inject NavigationManager NavigationManager
+@inject IMitarbeiterService MitarbeiterService
+
+<div class="top-row ps-3 navbar navbar-light" style="padding-top: 0">
+    <div class="container-fluid">
+        <span class="navbar-brand">
+            <img src="assets/img/Itree2.png" style="height: 45px;"/>
+        </span>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+@if (Benutzer != null && _mitarbeiter != null)
+{
+    <div>
+        <div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+            <nav class="flex-column">
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" @onclick="@(() => _expandSubNav = false)" href="intern" Match="NavLinkMatch.All">
+                        <span class="oi bi-speedometer" aria-hidden="true"></span> Dashboard
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="@(_expandSubNav ? "nav-link active" : "nav-link")" @onclick="@ToggleSubMenu" style="cursor: pointer;">
+                        <div class="d-flex justify-content-between" style="width: 100%">
+                            <div>
+                                <span class="oi bi-clock-fill" aria-hidden="true"></span> Zeiterfassung
+                            </div>
+                            <div style="align-self: center;">
+                                <MudIcon Icon="@(_expandSubNav ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ChevronRight)" Size="Size.Small" />
+                            </div>
+                        </div>
+
+                    </NavLink>
+                </div>
+                @if (_expandSubNav)
+                {
+                    <div class="expand-menu">
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="intern/zeiterfassung/buchungen">
+                                <span class="oi bi-table" aria-hidden="true"></span> Buchungen
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="intern/zeiterfassung/spesen">
+                                <span class="oi bi-cash" aria-hidden="true"></span> Spesen
+                            </NavLink>
+                        </div>
+                    </div>
+                }
+                @if (_mitarbeiter!.Intern)
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="intern/reports">
+                            <span class="oi bi-file-earmark-bar-graph" aria-hidden="true"></span> Reports
+                        </NavLink>
+                    </div>
+                }
+                @if (_mitarbeiter!.Intern)
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" @onclick="@(() => _expandSubNav = false)" href="intern/mitarbeiter">
+                            <span class="oi bi-robot" aria-hidden="true"></span> Mitarbeiter
+                        </NavLink>
+                    </div>
+
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" @onclick="@(() => _expandSubNav = false)" href="intern/Kunden">
+                            <span class="oi bi-people-fill" aria-hidden="true"></span> Kunden
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" @onclick="@(() => _expandSubNav = false)" href="intern/einstellungen">
+                            <span class="oi bi-gear-fill" aria-hidden="true"></span> Einstellungen
+                        </NavLink>
+                    </div>
+                }
+
+            </nav>
+        </div>
+        <div style="position: fixed; bottom: 0;width: 250px;">
+            <div class="font-weight-bold text-gray-800" style="float: right">
+                @GetAppVersion()
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    public Benutzer? Benutzer { get; set; }
+
+    private Mitarbeiter? _mitarbeiter;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Benutzer == null)
+            throw new InvalidDataException("Benutzer is null");
+
+        if (Benutzer.MitarbeiterId != null)
+        {
+            _mitarbeiter = await MitarbeiterService.GetMitarbeiterByIdAsync((Guid)Benutzer.MitarbeiterId);
+        }
+    }
+
+    private bool _collapseNavMenu = true;
+    private bool _expandSubNav;
+
+    private string? NavMenuCssClass => _collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        _collapseNavMenu = !_collapseNavMenu;
+    }
+
+    private void ToggleSubMenu()
+    {
+        _expandSubNav = !_expandSubNav;
+    }
+
+    private string GetAppVersion()
+    {
+        var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0";
+
+        if (version.Contains("+"))
+        {
+            version = version.Split("+").First();
+        }
+        return $"Version: {version}";
+    }
+}

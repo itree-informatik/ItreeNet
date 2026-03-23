@@ -1,0 +1,129 @@
+@page "/intern/mitarbeiter"
+@attribute [Authorize(Policy = "internPolicy")]
+@inject IMitarbeiterService MitarbeiterService
+@inject ITeamService TeamService
+@inject NavigationManager NavigationManager
+@layout Layout
+
+<h3 class="text-gray-800">Mitarbeiter</h3>
+
+@if (_isLoading)
+{
+    <ItreeSpinner />
+}
+else
+{
+    <MudDataGrid T="Mitarbeiter"
+                 Items="@FilteredMitarbeiter"
+                 RowClick="@(args => Open(args.Item))"
+                 SortMode="SortMode.Multiple"
+                 FilterMode="DataGridFilterMode.ColumnFilterRow"
+                 Dense="true" Hover="true" Bordered="true" Striped="true"
+                 Class="mb-2">
+        <ToolBarContent>
+            <MudButton OnClick="@(() => Open(new Mitarbeiter()))" StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary">Neuer Mitarbeiter</MudButton>
+            <MudSwitch T="bool" Value="@_showInactive" ValueChanged="@OnShowInactiveChanged" Label="Inaktive anzeigen" Class="ms-4" Color="Color.Primary" />
+        </ToolBarContent>
+        <Columns>
+            <PropertyColumn Property="x => x.Nachname" Title="Nachname" />
+            <PropertyColumn Property="x => x.Vorname" Title="Vorname" />
+            <PropertyColumn Property="x => x.Email" Title="Email" />
+            <TemplateColumn Title="Teams" Filterable="false">
+                <CellTemplate Context="item">
+                    @if (item.Item.TeamIds != null)
+                    {
+                        var teams = string.Empty;
+                        foreach (var teamId in item.Item.TeamIds)
+                        {
+                            var team = _teams!.Single(t => t.Id == teamId);
+                            teams += $"{team.Bezeichnung}, ";
+                        }
+                        if (teams != string.Empty)
+                        {
+                            teams = teams.Substring(0, teams.Length - 2);
+                            @teams
+                        }
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="x => x.Eintritt" Title="Eintritt" Format="dd.MM.yyyy" />
+            <PropertyColumn Property="x => x.Austritt" Title="Austritt" Format="dd.MM.yyyy" />
+            <TemplateColumn Title="Intern">
+                <FilterTemplate>
+                    <MudSelect T="string" Value="@_internFilter" ValueChanged="@(v => _internFilter = v)" Dense="true" Margin="Margin.Dense" Clearable="false">
+                        <MudSelectItem Value="@("Alle")">Alle</MudSelectItem>
+                        <MudSelectItem Value="@("Intern")">Intern</MudSelectItem>
+                        <MudSelectItem Value="@("Extern")">Extern</MudSelectItem>
+                    </MudSelect>
+                </FilterTemplate>
+                <CellTemplate Context="item">
+                    @if (item.Item.Intern)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Aktiv" Filterable="false">
+                <CellTemplate Context="item">
+                    @if (item.Item.Aktiv)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+    </MudDataGrid>
+}
+
+@code {
+    [CascadingParameter]
+    public Benutzer? Benutzer { get; set; }
+
+    public Guid MitarbeiterId { get; set; }
+
+    private List<Team>? _teams;
+    private List<Mitarbeiter>? _mitarbeiter;
+    private bool _showInactive;
+    private string _internFilter = "Alle";
+
+    private bool _isLoading = true;
+
+    private IEnumerable<Mitarbeiter> FilteredMitarbeiter =>
+        (_mitarbeiter ?? Enumerable.Empty<Mitarbeiter>())
+            .Where(m => _internFilter == "Alle" || (m.Intern ? "Intern" : "Extern") == _internFilter);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Benutzer == null || Benutzer.MitarbeiterId == null)
+            throw new Exception("Kein Benutzer gefunden");
+
+        MitarbeiterId = (Guid)Benutzer.MitarbeiterId;
+
+        _mitarbeiter = await MitarbeiterService.GetAllAsync(includeInactive: false);
+        _teams = await TeamService.GetAllAsync();
+
+        _isLoading = false;
+    }
+
+    private async Task OnShowInactiveChanged(bool value)
+    {
+        _showInactive = value;
+        _mitarbeiter = await MitarbeiterService.GetAllAsync(includeInactive: _showInactive);
+    }
+
+    private void Open(Mitarbeiter? model)
+    {
+        if (model != null)
+        {
+            NavigationManager.NavigateTo($"/intern/mitarbeiter/{model.Id}");
+        }
+    }
+}

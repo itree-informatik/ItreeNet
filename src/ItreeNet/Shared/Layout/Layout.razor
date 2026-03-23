@@ -1,0 +1,223 @@
+@using System.Security.Claims
+@using ItreeNet.Services
+@inject BodyChangedService BodyChangedService
+@inject UserService UserService
+@inject NavigationManager NavigationManager
+@inject IProfilService ProfilService
+@inject IJSRuntime JsRuntime
+@inject ILogger<Layout> Logger
+@inherits LayoutComponentBase
+@implements IAsyncDisposable
+
+<PageTitle>Itree intern</PageTitle>
+
+<MudThemeProvider IsDarkMode="@_isDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<AuthorizeView>
+    <Authorized>
+        <CascadingValue Value="@Benutzer">
+            @if (_isLoading)
+            {
+                <ItreeSpinner/>
+            }
+            else
+            {
+                <div class="page" @key="_bodyKey">
+                    <div class="sidebar" style="z-index: 1000;">
+                        <NavMenu />
+                    </div>
+
+                    <main>
+                        <div id="top-row" class="top-row px-4" style="z-index: 100;">
+                            @if (Benutzer != null)
+                            {
+                                <MudMenu @bind-Open="_profilMenuOpen" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
+                                    <ActivatorContent Context="activator">
+                                        <div class="pointer" id="menu_profil" @onclick="@(() => _profilMenuOpen = !_profilMenuOpen)">
+                                            <div class="profil_name">@Benutzer.Name</div>
+                                            <div class="profil_email">@Benutzer.Email</div>
+                                        </div>
+                                    </ActivatorContent>
+                                    <ChildContent>
+                                        <MudMenuItem OnClick="@ChangeTheme">
+                                            @if (_isDarkMode)
+                                            {
+                                                <span class="bi-sun me-2"></span><span>Light Mode</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="bi-moon me-2"></span><span>Dark Mode</span>
+                                            }
+                                        </MudMenuItem>
+                                        @* ReSharper disable once Html.PathError *@
+                                        <MudMenuItem Href="login/logout">Log out</MudMenuItem>
+                                    </ChildContent>
+                                </MudMenu>
+                            }
+                        </div>
+
+                        <article class="content px-4">
+                            <div class="main">
+                                <div class="content px-4">
+                                    <MyErrorBoundary @ref="_errorBoundary">
+                                        <ChildContent>
+                                            @Body
+                                        </ChildContent>
+                                        <ErrorContent Context="_">
+                                            <div>
+                                                <img class="mx-auto d-block" src="assets/img/something-went-wrong.webp" />
+                                            </div>
+                                            <h3 class="text-gray-800" style="text-align: center">Oops something went wrong!</h3>
+                                            @if (_errorBoundary.CurrentException != null && !string.IsNullOrEmpty(_errorBoundary.CurrentException.Message))
+                                            {
+                                                <div class="shadow alert alert-danger mb-2" style="font-family: Garamon">
+                                                    @_errorBoundary.CurrentException.Message
+                                                </div>
+                                            }
+                                        </ErrorContent>
+                                    </MyErrorBoundary>
+                                </div>
+                            </div>
+                        </article>
+                    </main>
+                </div>
+            }
+        </CascadingValue>
+    </Authorized>
+    <Authorizing>
+        <span style="padding-top: 50px">
+            <ItreeSpinner />
+        </span>
+    </Authorizing>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    public Benutzer? Benutzer { get; set; }
+    private bool _isLoading = true;
+    private bool _isDarkMode;
+    private bool _profilMenuOpen;
+    private MyErrorBoundary _errorBoundary = null!;
+    private Guid _bodyKey = Guid.NewGuid();
+
+    protected override void OnParametersSet()
+    {
+        _errorBoundary?.Recover();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        BodyChangedService.OnChange += RefreshBody;
+
+        var cp = (await AuthenticationStateTask!).User;
+        if (cp.Identity?.IsAuthenticated ?? false)
+        {
+            await CreateUserFromClaim(cp.Claims.ToList());
+            if (Benutzer != null)
+            {
+                _isDarkMode = Benutzer.ThemeMode == EnumThemeMode.Dark;
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (Benutzer != null)
+            {
+                await ApplyTheme(isStartup: true);
+            }
+
+            _isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        BodyChangedService.OnChange -= RefreshBody;
+        await ValueTask.CompletedTask;
+    }
+
+    private async Task CreateUserFromClaim(List<Claim> claims)
+    {
+        Benutzer = new Benutzer();
+
+        var claimEmail = claims.FirstOrDefault(c => c.Type == "preferred_username");
+        var claimName = claims.FirstOrDefault(c => c.Type == "name");
+        var claimUid = claims.FirstOrDefault(c => c.Type == "uid");
+        var claimGroups = claims.Where(c => c.Type == "groups").ToList();
+
+        if (claimName != null && claimEmail != null && claimUid != null)
+        {
+            if (claimGroups.Any() || claimEmail.Value.Contains("@itree.ch"))
+            {
+                var grpList = claimGroups.Select(c => c.Value).ToList();
+                Benutzer.Email = claimEmail.Value;
+                Benutzer.Name = claimName.Value;
+                Benutzer.Uid = new Guid(claimUid.Value);
+                Benutzer = await UserService.CreateBenutzer(Benutzer, grpList);
+            }
+            else
+            {
+                Benutzer.IsAuthenticated = true;
+                Benutzer.IsAuthorized = false;
+            }
+        }
+        else
+        {
+            Benutzer.IsAuthenticated = false;
+            Benutzer.IsAuthorized = false;
+        }
+    }
+
+    private async Task ApplyTheme(bool isStartup = false)
+    {
+        _isDarkMode = Benutzer!.ThemeMode == EnumThemeMode.Dark;
+        await JsRuntime.InvokeVoidAsync("themeChanger.changeCss", _isDarkMode ? "dark" : "light");
+
+        if (!isStartup)
+        {
+            var profilEinstellungen = Benutzer!.Profil!.Einstellungen.Clone();
+            profilEinstellungen!.Mode = Benutzer.ThemeMode.ToString()!;
+            await ProfilService.UpdateAsync(Benutzer.Profil!, profilEinstellungen);
+        }
+    }
+
+    private async Task ChangeTheme()
+    {
+        Benutzer!.ThemeMode = Benutzer.ThemeMode == EnumThemeMode.Dark ? EnumThemeMode.Light : EnumThemeMode.Dark;
+        await ApplyTheme();
+        RefreshBody();
+    }
+
+    private void RefreshBody()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            var cp = (await AuthenticationStateTask!).User;
+            if (!cp.Identity?.IsAuthenticated ?? true)
+            {
+                var currentUrl = NavigationManager.Uri;
+                Logger.LogInformation("Unauthenticated access, redirecting to login. URL: {Url}", currentUrl);
+                NavigationManager.NavigateTo($"login/microsoft?redirectUrl={currentUrl}");
+            }
+            else
+            {
+                await CreateUserFromClaim(cp.Claims.ToList());
+            }
+
+            _bodyKey = Guid.NewGuid();
+            await InvokeAsync(StateHasChanged);
+        }).ContinueWith(_ => InvokeAsync(StateHasChanged));
+    }
+}

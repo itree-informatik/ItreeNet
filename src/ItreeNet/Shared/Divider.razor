@@ -1,0 +1,32 @@
+﻿<div class="text-divider">
+    <div class="text-sm font-weight-bold text-@_colorTheme text-uppercase mb-1">
+        @Title
+    </div>
+</div>
+
+
+@code {
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public EnumSettingCategory? Category { get; set; }
+
+    private string? _colorTheme;
+
+    protected override void OnInitialized()
+    {
+        switch (Category)
+        {
+            case EnumSettingCategory.Allgemein:
+                _colorTheme = "warning";
+                break;
+            case EnumSettingCategory.Zeiterfassung:
+                _colorTheme = "primary";
+                break;
+            case EnumSettingCategory.Taskboard:
+                _colorTheme = "success";
+                break;
+        }
+    }
+}

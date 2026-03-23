@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+	<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+	<DockerfileContext>.</DockerfileContext>
+    <UserSecretsId>d12ccc04-ebbf-45f2-9193-0ba1b382006e</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="filestore\**" />
+    <Content Remove="filestore\**" />
+    <EmbeddedResource Remove="filestore\**" />
+    <None Remove="filestore\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+	<PackageReference Include="AutoMapper" Version="16.1.1" />
+	<PackageReference Include="Azure.Communication.Email" Version="1.1.0" />
+	<PackageReference Include="FluentValidation" Version="12.1.1" />
+	<PackageReference Include="GemBox.Document" Version="2026.3.103" />
+	<PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.3" />
+	<PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
+	<PackageReference Include="Microsoft.Identity.Web" Version="4.5.0" />
+	<PackageReference Include="Microsoft.Identity.Web.MicrosoftGraph" Version="4.5.0" />
+	<PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.16.0" />
+	<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
+	<PackageReference Include="Serilog" Version="4.3.1" />
+	<PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+	<PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+	<PackageReference Include="ClosedXML" Version="0.105.0" />
+	<PackageReference Include="Serilog.Sinks.PostgreSQL" Version="2.3.0" />
+	<PackageReference Include="System.IO.Packaging" Version="10.0.5" />
+	<PackageReference Include="MudBlazor" Version="9.2.0" />
+	<PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
+	<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.5">
+		<PrivateAssets>all</PrivateAssets>
+		<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	</PackageReference>
+  </ItemGroup>
+
+
+</Project>

@@ -1,0 +1,500 @@
+@page "/intern/mitarbeiter/{MitarbeiterId:guid}"
+@attribute [Authorize(Policy = "internPolicy")]
+@inject IMitarbeiterService MitarbeiterService
+@inject IJSRuntime JsRuntime
+@inject IFerienArbeitspensumService FerienArbeitspensumService
+@inject IMitarbeiterSaldoService MitarbeiterSaldoService
+@inject IMitarbeiterSaldoKorrekturService MitarbeiterSaldoKorrekturService
+@inject ITeamService TeamService
+@inject NavigationManager NavigationManager
+@layout Layout
+
+<style>
+    label {
+        width: 100px;
+    }
+</style>
+
+<div class="box-head d-flex justify-content-between">
+    <div class="d-flex justify-content-start">
+        <h3 class="text-gray-800 me-4">Mitarbeiter</h3>
+        <div class="d-flex mt-1 pointer" @onclick="@(() => Return())">
+            <div class="me-2">
+                <MudIcon Icon="@Icons.Material.Filled.Undo" />
+            </div>
+            <div class="text-gray-800">
+                Zurück zur Mitarbeiterübersicht
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (_isLoading)
+{
+    <ItreeSpinner />
+}
+else
+{
+    <EditForm EditContext="@_editContextMitarbeiter" OnValidSubmit="@OnSaveMitarbeiter">
+        <ItreeFluentValidationValidator Validator="@(new MitarbeiterValidator())" DisableAssemblyScanning="true" StrictMode="false" />
+
+        <ValidationSummary />
+
+        <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow mt-2 border-left-success mb-2">
+            <div class="d-flex justify-content-between mb-2">
+                <div class="d-flex justify-content-start" style="width: 33%">
+                    <label style="width: 100px;" for="textbox_vorname">Vorname</label>
+                    <MudTextField @bind-Value="_selectMitarbeiter!.Vorname" id="textbox_vorname" Placeholder="Vorname" />
+                </div>
+                <div class="d-flex justify-content-start" style="width: 33%">
+                    <label style="width: 100px;" for="textbox_nachname">Nachname</label>
+                    <MudTextField @bind-Value="_selectMitarbeiter!.Nachname" id="textbox_nachname" Placeholder="Nachname" />
+                </div>
+                <div class="d-flex justify-content-start" style="width: 33%">
+                    <label style="width: 100px;" for="textbox_email">Email</label>
+                    <MudTextField @bind-Value="_selectMitarbeiter!.Email" id="textbox_email" Placeholder="Email" />
+                </div>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <div class="d-flex justify-content-start" style="width: 33%">
+                    <label style="width: 100px;" for="textbox_azureId">AzureId</label>
+                    <MudTextField @bind-Value="@_selectMitarbeiter!.AzureId" id="textbox_azureId" />
+                </div>
+                <div class="d-flex justify-content-start" style="width: 33%">
+                    <label style="width: 100px;" for="datepicker_eintritt">Eintritt</label>
+                    <MudDatePicker @bind-Date="@EintrittAsDateTime" id="datepicker_eintritt" Editable="true" />
+                </div>
+                <div class="d-flex justify-content-start" style="width: 33%">
+                    <label style="width: 100px;" for="dropdown_team">Team</label>
+                    <MudSelect T="Guid" MultiSelection="true" id="dropdown_team"
+                               SelectedValues="@(_selectMitarbeiter!.TeamIds ?? new())"
+                               SelectedValuesChanged="@OnTeamIdsChanged"
+                               ToStringFunc="@(id => _teams?.FirstOrDefault(t => t.Id == id)?.Bezeichnung ?? id.ToString())">
+                        @foreach (var item in _teams ?? new List<Team>())
+                        {
+                            <MudSelectItem Value="item.Id">@item.Bezeichnung</MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <div class="d-flex justify-content-start" style="width: 33%">
+                    <label style="width: 100px" for="datepicker_austritt">Austritt</label>
+                    <MudDatePicker @bind-Date="@AustrittAsDateTime" id="datepicker_austritt" Editable="true" />
+                </div>
+                <div class="d-flex justify-content-start" style="width: 33%">
+                    <label for="checkbox_intern">Intern</label>
+                    <MudCheckBox @bind-Value="@_selectMitarbeiter!.Intern" id="checkbox_intern" Class="mt-1" />
+                </div>
+                <div class="d-flex justify-content-between mb-2" style="width: 33%">
+                    <div class="d-flex justify-content-start">
+                        <label for="checkbox_aktiv">Aktiv</label>
+                        <MudCheckBox @bind-Value="@_selectMitarbeiter!.Aktiv" id="checkbox_aktiv" Class="mt-1" />
+                    </div>
+                    <div class="d-flex justify-content-end">
+                        <MudButton ButtonType="ButtonType.Submit" StartIcon="@Icons.Material.Filled.Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!HasChanges())">Speichern</MudButton>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </EditForm>
+
+    @if (MitarbeiterId != Guid.Empty)
+    {
+        <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow mt-2 border-left-warning">
+            <div>
+                <div class="text-gray-800">Ferien und Arbeitspensum</div>
+            </div>
+            <hr class="mt-1" />
+            <MudDataGrid T="FerienArbeitspensum"
+                         Items="@_ferienArbeitspensums"
+                         SortMode="SortMode.Multiple"
+                         FilterMode="DataGridFilterMode.ColumnFilterRow"
+                         Dense="true" Hover="true" Bordered="true" Striped="true">
+                <Columns>
+                    <PropertyColumn Property="x => x.FerienProJahr" Title="FerienProJahr" />
+                    <PropertyColumn Property="x => x.Arbeitspensum" Title="Arbeitspensum" />
+                    <PropertyColumn Property="x => x.GueltigAb" Title="GueltigAb" Format="dd.MM.yyyy" />
+                    <TemplateColumn Title="Montag">
+                        <CellTemplate Context="item">
+                            @if (item.Item.Montag)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Dienstag">
+                        <CellTemplate Context="item">
+                            @if (item.Item.Dienstag)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Mittwoch">
+                        <CellTemplate Context="item">
+                            @if (item.Item.Mittwoch)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Donnerstag">
+                        <CellTemplate Context="item">
+                            @if (item.Item.Donnerstag)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Freitag">
+                        <CellTemplate Context="item">
+                            @if (item.Item.Freitag)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn>
+                        <HeaderTemplate>
+                            <div class="new-entry" @onclick="@(() => SelectFerienArbeitspensum(new FerienArbeitspensum(){MitarbeiterId = MitarbeiterId, GueltigAb = DateOnly.FromDateTime(DateTime.Today)}))">
+                                <MudIcon Icon="@Icons.Material.Filled.Add" />
+                            </div>
+                        </HeaderTemplate>
+                        <CellTemplate Context="item">
+                            <MudButton OnClick="@(() => SelectFerienArbeitspensum(item.Item))" StartIcon="@Icons.Material.Filled.Edit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" />
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        </div>
+    }
+
+    @if (MitarbeiterId != Guid.Empty)
+    {
+        <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow mt-2 border-left-danger mb-2">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-gray-800">Mitarbeitersaldos</div>
+                <div class="d-flex align-items-center" style="gap: 4px;">
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" OnClick="@(() => _saldoJahr--)" />
+                    <span style="min-width: 40px; text-align: center;">@_saldoJahr</span>
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" OnClick="@(() => _saldoJahr++)" />
+                </div>
+            </div>
+            <hr class="mt-1" />
+            <MudDataGrid T="MitarbeiterSaldo"
+                         Items="@(_mitarbeiterSaldos?.Where(s => s.Jahr == _saldoJahr).ToList())"
+                         SortMode="SortMode.Multiple"
+                         FilterMode="DataGridFilterMode.ColumnFilterRow"
+                         Dense="true" Hover="true" Bordered="true" Striped="true">
+                <Columns>
+                    <PropertyColumn Property="x => x.Monat" Title="Monat" />
+                    <PropertyColumn Property="x => x.StundenSaldo" Title="StundenSaldo" />
+                    <PropertyColumn Property="x => x.FerienSaldo" Title="FerienSaldo" />
+                    <PropertyColumn Property="x => x.Soll" Title="Soll" />
+                    <PropertyColumn Property="x => x.Ist" Title="Ist" />
+                </Columns>
+            </MudDataGrid>
+        </div>
+    }
+
+    @if (MitarbeiterId != Guid.Empty)
+    {
+        <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow mt-2 border-left-primary mb-2">
+            <div>
+                <div class="text-gray-800">Korrekturen</div>
+            </div>
+            <hr class="mt-1" />
+            <MudDataGrid T="MitarbeiterSaldoKorrektur"
+                         Items="@_mitarbeiterSaldoKorrekturen"
+                         SortMode="SortMode.Multiple"
+                         FilterMode="DataGridFilterMode.ColumnFilterRow"
+                         Dense="true" Hover="true" Bordered="true" Striped="true">
+                <ToolBarContent>
+                    <MudButton OnClick="@(() => CreateMitarbeiterSaldoKorrektur(new MitarbeiterSaldoKorrektur()))" StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary">Neue Korrektur</MudButton>
+                </ToolBarContent>
+                <Columns>
+                    <PropertyColumn Property="x => x.Jahr" Title="Jahr" />
+                    <PropertyColumn Property="x => x.Monat" Title="Monat" />
+                    <PropertyColumn Property="x => x.Stunden" Title="Stunden" />
+                    <PropertyColumn Property="x => x.Ferien" Title="Ferien" />
+                    <PropertyColumn Property="x => x.Grund" Title="Grund" />
+                    <PropertyColumn Property="x => x.CreatedByNavigation!.Fullname" Title="Erstellt von" />
+                    <PropertyColumn Property="x => x.CreatedOn" Title="Erstellt am/um" />
+                </Columns>
+            </MudDataGrid>
+        </div>
+    }
+
+    <ItreeFormWindow WindowVisible="@_showFerienArbeitsPensum"
+                     Model="@_selectedFerienArbeitspensum"
+                     Validator="@(new FerienArbeitspensumValidator())"
+                     OnSave="@OnSaveFerienArbeitspensum"
+                     OnClose="@OnCloseFerienArbeitspensum"
+                     AutoGenerate="true"
+                     Writeable="true"
+                     IgnorePropertyList="MitarbeiterId,Mitarbeiter"
+                     IgnorePropertyCheckingList="MitarbeiterId,Mitarbeiter"/>
+
+    <ItreeFormWindow WindowVisible="@_showMitarbeiterSaldoKorrektur"
+                     Model="@_selectedMitarbeiterSaldoKorrektur"
+                     Validator="@(new MitarbeiterSaldoKorrekturValidator())"
+                     OnSave="@OnSaveMitarbeiterSaldoKorrektur"
+                     OnClose="@OnCloseMitarbeiterSaldoKorrektur"
+                     AutoGenerate="true"
+                     Writeable="true"
+                     IgnorePropertyList="MitarbeiterId,Mitarbeiter,CreatedOn,CreatedBy"
+                     IgnorePropertyCheckingList="MitarbeiterId,Mitarbeiter,CreatedOn,CreatedBy" />
+
+    @*Confirm cancel when changes are not saved*@
+    <ConfirmWindow IsVisible="@_isVisibleCancelConfirm" CheckHandler="@CancelConfirm" Type="EnumConfirmType.Cancel" />
+}
+
+@code {
+    [CascadingParameter]
+    public Benutzer? Benutzer { get; set; }
+    [Parameter]
+    public Guid MitarbeiterId { get; set; }
+
+    private EditContext? _editContextMitarbeiter;
+
+    private bool HasChangesMitarbeiterSaldoKorrektur => !BaseExtension.IsEqual(_selectedMitarbeiterSaldoKorrektur, _selectedMitarbeiterSaldoOriginalKorrektur);
+    private bool HasChangesFerienArbeitspensum => !BaseExtension.IsEqual(_selectedFerienArbeitspensum, _selectedFerienArbeitspensumOriginal);
+    private bool _showMitarbeiterSaldoKorrektur;
+    private bool _showFerienArbeitsPensum;
+
+    private Mitarbeiter? _selectMitarbeiter;
+    private Mitarbeiter? _selectMitarbeiterOriginal;
+
+    // Bridge properties for MudDatePicker (uses DateTime? but Eintritt/Austritt are DateOnly)
+    private DateTime? EintrittAsDateTime
+    {
+        get => _selectMitarbeiter != null ? _selectMitarbeiter.Eintritt.ToDateTime(TimeOnly.MinValue) : null;
+        set { if (_selectMitarbeiter != null) _selectMitarbeiter.Eintritt = value.HasValue ? DateOnly.FromDateTime(value.Value) : DateOnly.MinValue; }
+    }
+    private DateTime? AustrittAsDateTime
+    {
+        get => _selectMitarbeiter?.Austritt?.ToDateTime(TimeOnly.MinValue);
+        set { if (_selectMitarbeiter != null) _selectMitarbeiter.Austritt = value.HasValue ? DateOnly.FromDateTime(value.Value) : null; }
+    }
+
+    private FerienArbeitspensum? _selectedFerienArbeitspensum;
+    private FerienArbeitspensum? _selectedFerienArbeitspensumOriginal;
+
+    private MitarbeiterSaldoKorrektur? _selectedMitarbeiterSaldoKorrektur;
+    private MitarbeiterSaldoKorrektur? _selectedMitarbeiterSaldoOriginalKorrektur;
+
+    private List<FerienArbeitspensum>? _ferienArbeitspensums;
+    private List<MitarbeiterSaldo>? _mitarbeiterSaldos;
+    private List<MitarbeiterSaldoKorrektur>? _mitarbeiterSaldoKorrekturen;
+    private int _saldoJahr = DateTime.Now.Year;
+
+    private List<Team>? _teams;
+
+    private bool _isLoading = true;
+    private bool _isVisibleCancelConfirm;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Benutzer == null || Benutzer.MitarbeiterId == null)
+            throw new Exception("Kein Benutzer gefunden");
+
+        if (MitarbeiterId == Guid.Empty)
+        {
+            _selectMitarbeiter = new Mitarbeiter();
+            _selectMitarbeiter.Aktiv = true;
+        }
+        else
+        {
+            _selectMitarbeiter = await MitarbeiterService.GetMitarbeiterByIdAsync(MitarbeiterId);
+            _ferienArbeitspensums = await FerienArbeitspensumService.GetAllAsync(MitarbeiterId);
+            _mitarbeiterSaldos = await MitarbeiterSaldoService.GetAllAsync(MitarbeiterId);
+            _mitarbeiterSaldoKorrekturen = await MitarbeiterSaldoKorrekturService.GetAllAsync(MitarbeiterId);
+        }
+
+        _teams = await TeamService.GetAllActiveAsync();
+
+        _selectMitarbeiterOriginal = _selectMitarbeiter.Clone();
+        _editContextMitarbeiter = new(_selectMitarbeiter);
+
+        _isLoading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JsRuntime.InvokeVoidAsync("FocusElementById", "textbox_vorname");
+        }
+    }
+
+    private async Task OnSaveMitarbeiter()
+    {
+        bool isNew = _selectMitarbeiter!.Id == Guid.Empty;
+
+        _selectMitarbeiter = await MitarbeiterService.SaveSingleAsync(_selectMitarbeiter);
+        _selectMitarbeiterOriginal = _selectMitarbeiter.Clone();
+
+        if (isNew)
+        {
+            NavigationManager.NavigateTo($"/intern/mitarbeiter/{_selectMitarbeiter.Id}", true);
+        }
+    }
+
+    private void OnTeamIdsChanged(IEnumerable<Guid> vals)
+    {
+        if (_selectMitarbeiter != null)
+            _selectMitarbeiter.TeamIds = vals.ToList();
+    }
+
+    private bool HasChanges()
+    {
+        if (_selectMitarbeiter == null || _selectMitarbeiterOriginal == null)
+            return false;
+
+        var result = !BaseExtension.IsEqual(_selectMitarbeiter, _selectMitarbeiterOriginal, "TeamIds");
+
+        if (result)
+            return result;
+
+        result = !AreTeamIdsEqual(_selectMitarbeiter.TeamIds, _selectMitarbeiterOriginal.TeamIds);
+
+        return result;
+    }
+
+    private bool AreTeamIdsEqual(List<Guid>? list1, List<Guid>? list2)
+    {
+        if (list1 == null && list2 == null)
+            return true;
+        if (list1 == null || list2 == null)
+            return false;
+
+        return list1.Count == list2.Count && !list1.Except(list2).Any();
+    }
+
+    private void Return(bool force = false)
+    {
+        if (HasChanges() && !force)
+        {
+            _isVisibleCancelConfirm = true;
+        }
+        else{
+            NavigationManager.NavigateTo("/intern/mitarbeiter");
+        }
+    }
+
+    private void SelectFerienArbeitspensum(FerienArbeitspensum model)
+    {
+        _selectedFerienArbeitspensum = model.Clone();
+        _selectedFerienArbeitspensumOriginal = _selectedFerienArbeitspensum.Clone();
+        _showFerienArbeitsPensum = true;
+    }
+
+    private async Task OnSaveFerienArbeitspensum()
+    {
+        _ferienArbeitspensums = await FerienArbeitspensumService.SaveAsync(_selectedFerienArbeitspensum!);
+        _showFerienArbeitsPensum = false;
+    }
+
+    private void OnCloseFerienArbeitspensum()
+    {
+        if (HasChangesFerienArbeitspensum)
+        {
+            _isVisibleCancelConfirm = true;
+        }
+        else
+        {
+            _showFerienArbeitsPensum = false;
+        }
+    }
+
+    private void CreateMitarbeiterSaldoKorrektur(MitarbeiterSaldoKorrektur model)
+    {
+        model.CreatedOn = DateTime.Now;
+
+        if (Benutzer == null || Benutzer.MitarbeiterId == null)
+            throw new InvalidDataException("Aktueller Benutzer nicht gefunden");
+
+        model.CreatedBy = (Guid)Benutzer.MitarbeiterId;
+        model.Jahr = DateTime.Now.Year;
+        model.Monat = DateTime.Now.Month;
+        model.MitarbeiterId = MitarbeiterId;
+
+        _selectedMitarbeiterSaldoKorrektur = model.Clone();
+        _selectedMitarbeiterSaldoOriginalKorrektur = _selectedMitarbeiterSaldoKorrektur.Clone();
+        _showMitarbeiterSaldoKorrektur = true;
+    }
+
+    private async Task OnSaveMitarbeiterSaldoKorrektur()
+    {
+        _mitarbeiterSaldoKorrekturen = await MitarbeiterSaldoKorrekturService.SaveAsync(_selectedMitarbeiterSaldoKorrektur!);
+        _showMitarbeiterSaldoKorrektur = false;
+    }
+
+    private void OnCloseMitarbeiterSaldoKorrektur()
+    {
+        if (HasChangesMitarbeiterSaldoKorrektur)
+        {
+            _isVisibleCancelConfirm = true;
+        }
+        else
+        {
+            _showMitarbeiterSaldoKorrektur = false;
+        }
+    }
+
+    /// <summary>
+    ///     Handler to confirm the canceling
+    /// </summary>
+    /// <param name="shouldCancel">Cancel or not</param>
+    private void CancelConfirm(bool shouldCancel)
+    {
+        if (shouldCancel)
+        {
+            if (_selectedMitarbeiterSaldoKorrektur != null)
+            {
+                _selectedMitarbeiterSaldoKorrektur = null;
+                _selectedMitarbeiterSaldoOriginalKorrektur = null;
+                _selectedFerienArbeitspensum = null;
+                _selectedFerienArbeitspensumOriginal = null;
+            }
+            if (_selectedFerienArbeitspensum != null)
+            {
+                _selectedMitarbeiterSaldoKorrektur = null;
+                _selectedMitarbeiterSaldoOriginalKorrektur = null;
+                _selectedFerienArbeitspensum = null;
+                _selectedFerienArbeitspensumOriginal = null;
+            }
+            else
+            {
+                _selectedMitarbeiterSaldoKorrektur = null;
+                _selectedMitarbeiterSaldoOriginalKorrektur = null;
+                _selectedFerienArbeitspensum = null;
+                _selectedFerienArbeitspensumOriginal = null;
+                _selectMitarbeiter = _selectMitarbeiterOriginal.Clone();
+            }
+        }
+        _isVisibleCancelConfirm = false;
+        StateHasChanged();
+    }
+}

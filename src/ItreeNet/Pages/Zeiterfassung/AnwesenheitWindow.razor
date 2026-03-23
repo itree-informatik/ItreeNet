@@ -1,0 +1,131 @@
+@inject IAnwesenheitService AnwesenheitService
+
+@if (_visible)
+{
+    <MudOverlay Visible="true" DarkBackground="true" ZIndex="1300">
+        <MudPaper Class="pa-4" Style="width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;">
+            <MudText Typo="Typo.h6" Class="mb-3">Anwesenheit — @Datum.ToString("dd.MM.yyyy")</MudText>
+
+            <EditForm Model="@_model" OnValidSubmit="@Save">
+                <ItreeFluentValidationValidator Validator="@(new AnwesenheitValidator())" DisableAssemblyScanning="true" StrictMode="false" />
+
+                <FormField Label="Typ">
+                    <MudSelect @bind-Value="@_model.Typ" Style="width:100%;">
+                        <MudSelectItem Value="@EnumAnwesenheitTyp.Anwesenheit">Anwesenheit</MudSelectItem>
+                        <MudSelectItem Value="@EnumAnwesenheitTyp.Ferien">Ferien</MudSelectItem>
+                        <MudSelectItem Value="@EnumAnwesenheitTyp.Gleitzeit">Gleitzeit</MudSelectItem>
+                        <MudSelectItem Value="@EnumAnwesenheitTyp.Krank">Krank</MudSelectItem>
+                    </MudSelect>
+                    <ValidationMessage For="(() => _model.Typ)" />
+                </FormField>
+
+                <FormField Label="Stunden">
+                    <MudNumericField @bind-Value="@_model.Zeit" Format="N2" />
+                    <ValidationMessage For="(() => _model.Zeit)" />
+                </FormField>
+
+                <FormField Label="Zeit von">
+                    <MudTimePicker @bind-Time="@ZeitVonAsTimeSpan" MinuteSelectionStep="15" />
+                    <ValidationMessage For="(() => _model.ZeitVon)" />
+                </FormField>
+
+                <FormField Label="Zeit bis">
+                    <MudTimePicker @bind-Time="@ZeitBisAsTimeSpan" MinuteSelectionStep="15" />
+                    <ValidationMessage For="(() => _model.ZeitBis)" />
+                </FormField>
+
+                <FormField Label="Notiz">
+                    <MudTextField @bind-Value="@_model.Notiz" Lines="2" />
+                    <ValidationMessage For="(() => _model.Notiz)" />
+                </FormField>
+
+                <ButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
+                    @if (_model.Id != Guid.Empty)
+                    {
+                        <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Delete" Variant="Variant.Filled" Color="Color.Primary" OnClick="@Delete">Löschen</MudButton>
+                    }
+                    <MudButton ButtonType="ButtonType.Submit" StartIcon="@Icons.Material.Filled.Save" Variant="Variant.Filled" Color="Color.Primary">Speichern</MudButton>
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Cancel" Variant="Variant.Filled" Color="Color.Primary" OnClick="@Close">Abbrechen</MudButton>
+                </ButtonGroup>
+            </EditForm>
+        </MudPaper>
+    </MudOverlay>
+}
+
+@code {
+    [Parameter] public DateOnly Datum { get; set; }
+    [Parameter] public Guid MitarbeiterId { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+    [Parameter] public EventCallback OnClosed { get; set; }
+
+    private Anwesenheit _model = new();
+    private bool _visible;
+    private DateOnly _loadedDatum;
+    private Guid _loadedMitarbeiterId;
+
+    private TimeSpan? ZeitVonAsTimeSpan
+    {
+        get => _model.ZeitVon?.TimeOfDay;
+        set => _model.ZeitVon = value.HasValue ? Datum.ToDateTime(new TimeOnly(0)).Add(value.Value) : null;
+    }
+
+    private TimeSpan? ZeitBisAsTimeSpan
+    {
+        get => _model.ZeitBis?.TimeOfDay;
+        set => _model.ZeitBis = value.HasValue ? Datum.ToDateTime(new TimeOnly(0)).Add(value.Value) : null;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Datum == default || MitarbeiterId == Guid.Empty) return;
+        if (Datum == _loadedDatum && MitarbeiterId == _loadedMitarbeiterId) return;
+
+        _loadedDatum = Datum;
+        _loadedMitarbeiterId = MitarbeiterId;
+
+        var records = await AnwesenheitService.GetByMitarbeiterAsync(MitarbeiterId, Datum, Datum);
+        if (records.Count > 0)
+        {
+            _model = records.First();
+        }
+        else
+        {
+            _model = new Anwesenheit
+            {
+                MitarbeiterId = MitarbeiterId,
+                Datum = Datum,
+                Typ = EnumAnwesenheitTyp.Anwesenheit,
+                Zeit = 0
+            };
+        }
+
+        _visible = true;
+    }
+
+    private async Task Save()
+    {
+        _model.MitarbeiterId = MitarbeiterId;
+        _model.Datum = Datum;
+        await AnwesenheitService.SaveAsync(_model);
+        _visible = false;
+        await OnChanged.InvokeAsync();
+        await OnClosed.InvokeAsync();
+    }
+
+    private async Task Delete()
+    {
+        if (_model.Id != Guid.Empty)
+        {
+            await AnwesenheitService.DeleteAsync(_model.Id);
+        }
+        _visible = false;
+        await OnChanged.InvokeAsync();
+        await OnClosed.InvokeAsync();
+    }
+
+    private async Task Close()
+    {
+        _visible = false;
+        await OnClosed.InvokeAsync();
+    }
+}

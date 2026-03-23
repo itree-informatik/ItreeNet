@@ -1,0 +1,54 @@
+﻿@if (Show)
+{
+    if (LabelPosition == EnumLabelPosition.Horizontal)
+    {
+        <div class="k-form-field">
+            <label for="@LabelFieldId" class="k-label k-form-label @LabelClass">
+                    <span>@LabelText</span>
+            </label>
+            <div class="k-form-field-wrap @Class" style="@Style">
+                @ChildContent
+            </div>
+        </div>
+    }
+    if (LabelPosition == EnumLabelPosition.Vertical)
+    {
+        <div class="container" style="padding: 0; padding-top: 10px;">
+            <div style="text-align: center;">
+                <span class="@LabelClass" style="@LabelStyle">@LabelText</span>
+            </div>
+            <div class="container @Class" style="@Style">
+                @ChildContent
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+    [Parameter]
+    public bool Show { get; set; }
+    [Parameter]
+    public string? Class { get; set; }
+    [Parameter]
+    public string? Style { get; set; }
+    [Parameter]
+    public string? LabelText { get; set; }
+    [Parameter]
+    public string? LabelClass { get; set; }
+    [Parameter]
+    public string? LabelStyle { get; set; }
+    [Parameter]
+    public string? LabelFieldId { get; set; }
+    [Parameter]
+    public EnumLabelPosition LabelPosition { get; set; } = EnumLabelPosition.Horizontal;
+
+    protected override void OnInitialized()
+    {
+        if (ChildContent == null)
+            throw new InvalidOperationException("ItreeFormData requires an ChildContent");
+        base.OnInitialized();
+    }
+
+}

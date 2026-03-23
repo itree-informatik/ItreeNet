@@ -1,0 +1,248 @@
+@page "/intern/zeiterfassung/spesen"
+@attribute [Authorize]
+@inject ISpesenService SpesenService
+@inject IDokumentService DokumentService
+@inject IJSRuntime JsRuntime
+@layout Layout
+
+<div style="margin-right: 10px;">
+    <h3 class="text-gray-800">Zeiterfassung - Spesen</h3>
+</div>
+
+@if (_isLoading)
+{
+    <ItreeSpinner />
+}
+else
+{
+    <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() mt-2 border-left-primary">
+        <div class="d-flex justify-content-between">
+            <div class="d-flex justify-content-between">
+                <label class="mt-1 me-4" for="dropdown_jahrid">Jahr</label>
+                <MudSelect @bind-Value="@_selectedYear" Style="width:200px;" id="dropdown_jahrid">
+                    @foreach (var item in _yearsList ?? new())
+                    {
+                        <MudSelectItem Value="item">@item</MudSelectItem>
+                    }
+                </MudSelect>
+            </div>
+            <div>
+                <MudButton OnClick="@Download"
+                           Disabled="@(!(_spesenList != null && _spesenList.Any(s => s.EingereichtAm == null)))"
+                           StartIcon="@(_fileIsLoading ? null : Icons.Material.Filled.PictureAsPdf)"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary">
+                    @if (_fileIsLoading)
+                    {
+                        <MudProgressCircular Indeterminate="true" Color="Color.Secondary" Size="Size.Small" />
+                    }
+                    Spesenformular
+                </MudButton>
+            </div>
+        </div>
+    </div>
+
+    <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() mt-2 border-left-primary mb-2">
+        <MudDataGrid T="Spesen" Items="_spesenList" Dense="true" Hover="true" Bordered="true" Striped="true"
+                     FilterMode="DataGridFilterMode.ColumnFilterRow"
+                     SortMode="SortMode.Multiple"
+                     Class="mb-2">
+            <Columns>
+                <PropertyColumn Property="x => x.Datum" Title="Datum" Format="dd.MM.yyyy" />
+                <PropertyColumn Property="x => x.Betrag" Title="Betrag" />
+                <PropertyColumn Property="x => x.AnlassOrt" Title="AnlassOrt" />
+                <PropertyColumn Property="x => x.Spesenart" Title="Spesenart" />
+                <TemplateColumn Title="Kreditkarte" Filterable="false">
+                    <CellTemplate Context="item">
+                        <div class="new-entry">
+                            @if (item.Item.Kreditkarte)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                            }
+                        </div>
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.EingereichtAm" Title="EingereichtAm" Format="dd.MM.yyyy" />
+                <TemplateColumn>
+                    <HeaderTemplate>
+                        <div class="new-entry" @onclick="@(() => OpenDialog("new", new Spesen()))">
+                            <MudIcon Icon="@Icons.Material.Filled.Add" />
+                        </div>
+                    </HeaderTemplate>
+                    <CellTemplate Context="spesen">
+                        <div class="new-entry">
+                            @if (spesen.Item.EingereichtAm != null)
+                            {
+                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Cancel" OnClick="@(() => Deactivate(spesen.Item))" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">Einreichung zurückziehen</MudButton>
+                            }
+                            else
+                            {
+                                <MudIconButton ButtonType="ButtonType.Button" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenDialog("edit", spesen.Item))" />
+                                <MudIconButton ButtonType="ButtonType.Button" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog("delete", spesen.Item))" />
+                            }
+                        </div>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </div>
+
+    <ItreeFormWindow WindowVisible="@_showSpesenWindow"
+                     Model="@SelectedItem"
+                     Validator="@(new SpesenValidator())"
+                     OnSave="@Save"
+                     IgnorePropertyList="MitarbeiterId,EingereichtAm"
+                     OnClose="@OnClose"
+                     AutoGenerate="true"
+                     Writeable="true"/>
+}
+
+@*Confirm cancel when changes are not saved*@
+<ConfirmWindow IsVisible="@_isVisibleCancelConfirm" CheckHandler="@CancelConfirm" Type="EnumConfirmType.Cancel" />
+
+@*Confirm delete*@
+<ConfirmWindow IsVisible="@_isVisibleDeleteConfirm" CheckHandler="@DeleteConfirm" Type="EnumConfirmType.Delete" />
+
+@code {
+    [CascadingParameter]
+    public Benutzer? Benutzer { get; set; }
+
+    public Spesen? SelectedItem;
+    public Spesen? DeletedItem;
+    public Spesen? OriginalItem;
+
+    private List<Spesen>? _spesenList;
+    private List<int>? _yearsList;
+
+    private Guid _mitarbeiterId;
+    private int _selectedYear;
+
+    private bool _isLoading = true;
+    private bool _fileIsLoading;
+    private bool _isVisibleDeleteConfirm;
+    private bool _isVisibleCancelConfirm;
+    private bool _showSpesenWindow;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Benutzer == null || Benutzer.MitarbeiterId == null)
+            throw new Exception("Kein Benutzer gefunden");
+
+        _mitarbeiterId = (Guid)Benutzer.MitarbeiterId;
+
+        await GetYears();
+        await GetSpesen();
+        _isLoading = false;
+    }
+
+    private async Task GetYears()
+    {
+        _yearsList = await SpesenService.GetSpesenYearsAsync(_mitarbeiterId);
+        _selectedYear = _yearsList.Any() ? _yearsList.First() : DateTime.Today.Year;
+    }
+
+    private async Task GetSpesen()
+    {
+        _spesenList = await SpesenService.GetSpesenMitarbeiterIdAsync(_mitarbeiterId, _selectedYear);
+    }
+
+    private void OpenDialog(string type, Spesen spesen)
+    {
+        switch (type)
+        {
+            case "new":
+                spesen.Datum = DateOnly.FromDateTime(DateTime.Today);
+                spesen.MitarbeiterId = _mitarbeiterId;
+                SelectedItem = spesen.Clone();
+                _showSpesenWindow = true;
+                break;
+            case "edit":
+                SelectedItem = spesen.Clone();
+                _showSpesenWindow = true;
+                break;
+            case "delete":
+                DeletedItem = spesen;
+                _isVisibleDeleteConfirm = true;
+                break;
+        }
+    }
+
+    private async Task Deactivate(Spesen spesen)
+    {
+        spesen.EingereichtAm = null;
+        _spesenList = await SpesenService.UpdateSpesenAsync(spesen);
+    }
+
+    public async Task Download()
+    {
+        _fileIsLoading = true;
+        await InvokeAsync(StateHasChanged);
+
+        var filePath = await DokumentService.CreateSpesenabrechnung();
+        if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+        {
+            var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+            using var streamRef = new DotNetStreamReference(stream: stream);
+            await JsRuntime.InvokeVoidAsync("DownloadFileFromStream", Path.GetFileName(filePath), streamRef);
+        }
+        await GetSpesen();
+        _fileIsLoading = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task Save()
+    {
+
+        if (SelectedItem!.Id == Guid.Empty)
+        {
+            _spesenList = await SpesenService.InsertSpesenAsync(SelectedItem);
+        }
+        else
+        {
+            _spesenList = await SpesenService.UpdateSpesenAsync(SelectedItem);
+        }
+
+        OriginalItem = null;
+        SelectedItem = null;
+        await GetYears();
+    }
+
+    private void OnClose(bool hasChanges)
+    {
+        if (!hasChanges)
+        {
+            _showSpesenWindow = false;
+        }
+        else
+        {
+            _isVisibleCancelConfirm = true;
+        }
+    }
+
+    protected async Task DeleteConfirm(bool shouldDelete)
+    {
+        if (shouldDelete && DeletedItem != null)
+        {
+            _spesenList = await SpesenService.DeleteSpesenAsync(DeletedItem);
+        }
+        _isVisibleDeleteConfirm = false;
+        await GetYears();
+    }
+
+    /// <summary>
+    ///     Handler to confirm the canceling
+    /// </summary>
+    /// <param name="shouldCancel">Cancel or not</param>
+    private void CancelConfirm(bool shouldCancel)
+    {
+        if (shouldCancel && OriginalItem != null)
+        {
+            SelectedItem = OriginalItem.Clone();
+        }
+        _isVisibleCancelConfirm = false;
+    }
+}

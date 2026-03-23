@@ -1,0 +1,633 @@
+@page "/intern/kunden/{KundenId:guid}/{ProjektId:guid?}"
+@attribute [Authorize(Policy = "internPolicy")]
+@inject IBuchungsService BuchungsService
+@inject IKundenService KundenService
+@inject IProjektService ProjektService
+@inject IVorgangService VorgangService
+@inject ITeamService TeamService
+@inject IJSRuntime JsRuntime;
+@inject NavigationManager NavigationManager
+@layout Layout
+
+<style>
+    label {
+        width: 100px;
+    }
+</style>
+
+<div class="box-head d-flex justify-content-between">
+    <div class="d-flex justify-content-start">
+        <h3 class="text-gray-800 me-4">Kunde</h3>
+        <div class="d-flex mt-1 pointer" @onclick="@(() => Return())">
+            <div class="me-2">
+                <MudIcon Icon="@Icons.Material.Filled.Undo" />
+            </div>
+            <div class="text-gray-800">
+                Zurück zur Kundenübersicht
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (_isLoading)
+{
+    <ItreeSpinner />
+}
+else
+{
+    <EditForm EditContext="@_editContextKunde" OnValidSubmit="@OnSaveKunde">
+        <ItreeFluentValidationValidator Validator="@(new KundeValidator())" DisableAssemblyScanning="true" StrictMode="false" />
+
+        <ValidationSummary />
+
+        <div class="box @_backgroundTheme shadow border-left-primary">
+            <div class="mb-2">
+                <MudTextField @bind-Value="@_selectedKunde!.Kundenname" id="textbox_kunde_bezeichnung" />
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <div>
+                    <label for="teamId">Team</label>
+                    <MudSelect @bind-Value="@_selectedKunde!.TeamId" id="teamId">
+                        <MudSelectItem Value="@((Guid?)null)">— Auswählen —</MudSelectItem>
+                        @foreach (var item in _teams ?? new List<Team>())
+                        {
+                            <MudSelectItem Value="@((Guid?)item.Id)">@item.Bezeichnung</MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+                <div>
+                    <label for="checkbox_intern">Intern</label>
+                    <MudCheckBox @bind-Value="@_selectedKunde!.Intern" id="checkbox_intern" />
+                </div>
+                <div>
+                    <label for="checkbox_aktiv">Aktiv</label>
+                    <MudCheckBox @bind-Value="@_selectedKunde!.Aktiv" id="checkbox_aktiv" />
+                </div>
+                <div>
+                    <MudButton ButtonType="ButtonType.Submit" StartIcon="@Icons.Material.Filled.Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!HasChanges)">Speichern</MudButton>
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Delete" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_selectedKunde!.Id == Guid.Empty)" OnClick="@(() => Delete(_selectedKunde))">Löschen</MudButton>
+                </div>
+            </div>
+            <div>
+                <label for="textarea_adresse">Adresse</label>
+                <MudTextField @bind-Value="@_selectedKunde!.Adresse" id="textarea_adresse" Lines="4" />
+            </div>
+        </div>
+    </EditForm>
+
+    @if (HasProjekte)
+    {
+        <div class="box @_backgroundTheme shadow mt-2 border-left-warning">
+            <div>
+                <div class="text-gray-800">Projekte</div>
+            </div>
+            <hr class="mt-1" />
+            <MudDataGrid T="Projekt"
+                         Items="_filteredProjekte"
+                         RowClick="@(args => SelectProjekt(args.Item))"
+                         SortMode="SortMode.Multiple"
+                         FilterMode="DataGridFilterMode.ColumnFilterRow"
+                         Dense="true" Hover="true" Bordered="true" Striped="true">
+                <ToolBarContent>
+                    <MudButton OnClick="@(() => SelectProjekt(new Projekt()))" StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary">Neues Projekt</MudButton>
+                    <MudSwitch T="bool" @bind-Value="_showInactiveProjekte" Label="Inaktive anzeigen" Class="ms-4" Color="Color.Primary" />
+                </ToolBarContent>
+                <Columns>
+                    <PropertyColumn Property="x => x.Nummer" Title="Nummer" />
+                    <PropertyColumn Property="x => x.Bezeichnung" Title="Bezeichnung" />
+                    <PropertyColumn Property="x => x.Gesamtkosten" Title="Gesamtkosten" />
+                    <TemplateColumn Title="Aktiv">
+                        <CellTemplate Context="item">
+                            @if (item.Item.Aktiv)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        </div>
+    }
+    else
+    {
+        @if (_selectedProjekt == null)
+        {
+            <div class="mt-2" style="margin-left: -0.5rem;">
+                <MudButton OnClick="@(() => SelectProjekt(new Projekt()))" StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary">Neues Projekt</MudButton>
+            </div>
+        }
+    }
+
+    @if(_selectedProjekt != null)
+    {
+        <EditForm EditContext="@_editContextProjekt" OnValidSubmit="@OnSaveProjekt">
+            <ItreeFluentValidationValidator Validator="@(new ProjektValidator())" DisableAssemblyScanning="true" StrictMode="false" />
+
+            <ValidationSummary />
+
+            <div class="box @_backgroundTheme shadow mt-2 border-left-warning mb-2" id="box_projekt">
+                <div class="mb-2">
+                    <MudTextField @bind-Value="@_selectedProjekt!.Bezeichnung" id="textbox_projekt_bezeichnung" />
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <div class="d-flex justify-content-between">
+                        <label style="width: 200px" for="textbox_nummer">Nummer</label>
+                        <MudTextField @bind-Value="@_selectedProjekt!.Nummer" id="textbox_nummer" />
+                    </div>
+                    <div class="d-flex">
+                        <label style="width: 200px" for="textbox_vertragsdauer">Vertragsdauer</label>
+                        <MudTextField @bind-Value="@_selectedProjekt!.Vertragsdauer" id="textbox_vertragsdauer" />
+                    </div>
+                    <div>
+                        <MudButton ButtonType="ButtonType.Submit" StartIcon="@Icons.Material.Filled.Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!HasChangesProjekt)">Speichern</MudButton>
+                        <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Delete" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!HasProjekte)" OnClick="@(() => Delete(_selectedProjekt))">Löschen</MudButton>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <div class="d-flex">
+                        <label style="width: 200px" for="numerictextbox_gesamtkosten">Gesamtkosten</label>
+                        <MudNumericField @bind-Value="@_selectedProjekt.Gesamtkosten" id="numerictextbox_gesamtkosten" />
+                    </div>
+                    <div>
+                        <label for="checkbox_pauschal">Pauschal</label>
+                        <MudCheckBox @bind-Value="@_selectedProjekt.Pauschal" id="checkbox_pauschal" />
+                    </div>
+                    <div>
+                        <label style="width: 150px" for="checkbox_mehrwertsteuer">Mehrwertsteuer</label>
+                        <MudCheckBox @bind-Value="@_selectedProjekt.Mehrwertsteuer" id="checkbox_mehrwertsteuer" />
+                    </div>
+                    <div>
+                        <label for="checkbox_aktiv">Aktiv</label>
+                        <MudCheckBox @bind-Value="@_selectedProjekt.Aktiv" id="checkbox_aktiv" />
+                    </div>
+                </div>
+            </div>
+        </EditForm>
+
+        @if (_showAktivitaeten && _aktivitaeten != null)
+        {
+            <div class="box @_backgroundTheme shadow mt-2 border-left-success">
+                <div>
+                    <div class="text-gray-800">Aktivitäten</div>
+                </div>
+                <hr class="mt-1" />
+                <MudDataGrid T="Vorgang"
+                             Items="@_filteredAktivitaeten"
+                             RowClick="@(args => SelectAktivitaet(args.Item))"
+                             SortMode="SortMode.Multiple"
+                             FilterMode="DataGridFilterMode.ColumnFilterRow"
+                             Dense="true" Hover="true" Bordered="true" Striped="true">
+                    <ToolBarContent>
+                        <MudButton OnClick="@(() => SelectAktivitaet(new Vorgang()))" StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary">Neue Aktivität</MudButton>
+                        <MudSwitch T="bool" @bind-Value="_showInaktiveAktivitaeten" Label="Inaktive anzeigen" Class="ms-4" Color="Color.Primary" />
+                    </ToolBarContent>
+                    <Columns>
+                        <PropertyColumn Property="x => x.Bezeichnung" Title="Bezeichnung" />
+                        <PropertyColumn Property="x => x.Stundenansatz" Title="Stundenansatz" />
+                        <PropertyColumn Property="x => x.AnzahlStunden" Title="AnzahlStunden">
+                            <FooterTemplate>
+                                @_filteredAktivitaeten.Sum(v => v.AnzahlStunden)
+                            </FooterTemplate>
+                        </PropertyColumn>
+                        <TemplateColumn Title="GebuchteStunden">
+                            <CellTemplate Context="item">
+                                @if (item.Item.AnzahlStunden > 0)
+                                {
+                                    <span>
+                                        @item.Item.GebuchteStunden (@(Math.Round((item.Item.GebuchteStunden * 100) / item.Item.AnzahlStunden))%)
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span>
+                                        @item.Item.GebuchteStunden
+                                    </span>
+                                }
+                            </CellTemplate>
+                            <FooterTemplate>
+                                @{
+                                    var gebuchteStunden = _filteredAktivitaeten.Sum(v => v.GebuchteStunden);
+                                    var anzahlStundenSum = _filteredAktivitaeten.Sum(v => v.AnzahlStunden);
+                                    var prozent = decimal.Zero;
+                                    if (anzahlStundenSum != decimal.Zero && gebuchteStunden != decimal.Zero)
+                                    {
+                                        prozent = Math.Round((gebuchteStunden * 100) / anzahlStundenSum);
+                                    }
+                                    if (prozent > decimal.Zero)
+                                    {
+                                        @($"{gebuchteStunden} ({prozent}%)")
+                                    }
+                                    else
+                                    {
+                                        @gebuchteStunden
+                                    }
+                                }
+                            </FooterTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Aktiv">
+                            <CellTemplate Context="item">
+                                @if (item.Item.Aktiv)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            </div>
+        }
+        else
+        {
+            if (_selectedProjekt.Id != Guid.Empty)
+            {
+                <div class="mt-2" style="margin-left: -0.5rem;">
+                    <MudButton OnClick="@(() => SelectAktivitaet(new Vorgang()))" StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary">Neue Aktivität</MudButton>
+                </div>
+            }
+        }
+
+        @if(_selectedAktivitaet != null)
+        {
+            <EditForm EditContext="@_editContextAktivitaet" OnValidSubmit="@OnSaveAktivitaet">
+                <ItreeFluentValidationValidator Validator="@(new VorgangValidator())" DisableAssemblyScanning="true" StrictMode="false" />
+
+                <ValidationSummary />
+
+                <div class="box @_backgroundTheme shadow mt-2 border-left-success mb-2" id="box_aktivitaet">
+                    <div class="mb-2 d-flex justify-content-between">
+                        <div style="max-width: 1000px; min-width: 500px; width: 50%">
+                            <MudTextField @bind-Value="@_selectedAktivitaet!.Bezeichnung" id="textbox_aktivitaet_bezeichnung" />
+                        </div>
+                        <div @onclick="@ShowBuchungen" style="cursor: pointer;">
+                            <span class="oi bi-bar-chart-steps"></span>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <div class="d-flex justify-content-between">
+                            <label style="width: 100px" for="switch_stunden">Stunden</label>
+                            <MudSwitch T="bool" Value="@_showStunden" Color="Color.Primary" id="switch_stunden" Class="me-2" ValueChanged="@OnSwitch" />
+
+                            <label style="width: 200px" for="numerictextbox_anzahlstunden">@(_showStunden ? "Anzahl Stunden" :"Anzahl Tage")</label>
+                            <MudNumericField @bind-Value="@_selectedAktivitaet.AnzahlStunden" id="numerictextbox_anzahlstunden" />
+                        </div>
+                        <div class="d-flex">
+                            <label style="width: 200px" for="numerictextbox_Stundenansatz">Stundenansatz</label>
+                            <MudNumericField @bind-Value="@_selectedAktivitaet.Stundenansatz" id="numerictextbox_Stundenansatz" />
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <div>
+                            <label for="checkbox_aktiv">Aktiv</label>
+                            <MudCheckBox @bind-Value="@_selectedAktivitaet.Aktiv" id="checkbox_aktiv" />
+                        </div>
+                        <div>
+                            <MudButton ButtonType="ButtonType.Submit" StartIcon="@Icons.Material.Filled.Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!HasChangesAktivitaeten)">Speichern</MudButton>
+                            <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Delete" Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Delete(_selectedAktivitaet))">Löschen</MudButton>
+                        </div>
+                    </div>
+                </div>
+            </EditForm>
+        }
+
+        @if (_showBuchungen)
+        {
+            <div class="box @_backgroundTheme shadow mt-2 border-left-info mb-2" id="box_buchungen">
+                <div>
+                    <div class="text-gray-800">Buchungen</div>
+                </div>
+                <hr class="mt-1" />
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <MudDatePicker Label="Von" @bind-Date="_buchungenVon" DateFormat="dd.MM.yyyy" />
+                    <MudDatePicker Label="Bis" @bind-Date="_buchungenBis" DateFormat="dd.MM.yyyy" />
+                    <MudButton OnClick="@LoadBuchungen" StartIcon="@Icons.Material.Filled.Search" Variant="Variant.Filled" Color="Color.Primary">Laden</MudButton>
+                </div>
+                @if (_buchungen != null)
+                {
+                    <MudDataGrid T="Buchung"
+                                 Items="@_buchungen"
+                                 SortMode="SortMode.Multiple"
+                                 FilterMode="DataGridFilterMode.ColumnFilterRow"
+                                 Groupable="true"
+                                 Dense="true" Hover="true" Bordered="true" Striped="true">
+                        <Columns>
+                            <PropertyColumn Property="x => x.Mitarbeiter!.Fullname" Title="Mitarbeiter" />
+                            <PropertyColumn Property="x => x.Datum" Title="Datum" Format="dd.MM.yyyy" />
+                            <PropertyColumn Property="x => x.Buchungstext" Title="Buchungstext" />
+                            <PropertyColumn Property="x => x.Zeit" Title="Zeit">
+                                <FooterTemplate>
+                                    @(_buchungen?.Sum(b => b.Zeit)) h
+                                </FooterTemplate>
+                            </PropertyColumn>
+                        </Columns>
+                    </MudDataGrid>
+                }
+            </div>
+        }
+    }
+    <br/>
+
+    @*Confirm cancel when changes are not saved*@
+    <ConfirmWindow IsVisible="@_isVisibleCancelConfirm" CheckHandler="@CancelConfirm" Type="EnumConfirmType.Cancel" />
+
+    @*Confirm delete*@
+    <ConfirmWindow IsVisible="@_isVisibleDeleteConfirm" CheckHandler="@DeleteConfirm" Type="EnumConfirmType.Delete" />
+}
+
+@code {
+    [CascadingParameter]
+    public Benutzer? Benutzer { get; set; }
+    [Parameter]
+    public Guid KundenId { get; set; }
+    [Parameter]
+    public Guid? ProjektId { get; set; }
+
+    public Guid MitarbeiterId { get; set; }
+
+    private EditContext? _editContextKunde;
+    private EditContext? _editContextProjekt;
+    private EditContext? _editContextAktivitaet;
+
+    private bool HasChanges => !BaseExtension.IsEqual(_selectedKunde, _selectedKundeOriginal);
+    private bool HasChangesProjekt => !BaseExtension.IsEqual(_selectedProjekt, _selectedProjektOriginal);
+    private bool HasChangesAktivitaeten => !BaseExtension.IsEqual(_selectedAktivitaet, _selectedAktivitaetOriginal);
+
+    private Kunde? _selectedKunde;
+    private Kunde? _selectedKundeOriginal;
+    private Projekt? _selectedProjekt;
+    private Projekt? _selectedProjektOriginal;
+    private Vorgang? _selectedAktivitaet;
+    private Vorgang? _selectedAktivitaetOriginal;
+
+    private dynamic? _objectToDelete;
+
+    private List<Team>? _teams;
+    private List<Projekt> _projekte = new();
+    private List<Vorgang>? _aktivitaeten;
+    private List<Buchung>? _buchungen;
+
+    private bool _showInactiveProjekte;
+    private bool _showInaktiveAktivitaeten;
+
+    private IEnumerable<Projekt> _filteredProjekte =>
+        _showInactiveProjekte ? _projekte : _projekte.Where(p => p.Aktiv);
+
+    private IEnumerable<Vorgang> _filteredAktivitaeten =>
+        _aktivitaeten == null ? Enumerable.Empty<Vorgang>() :
+        _showInaktiveAktivitaeten ? _aktivitaeten : _aktivitaeten.Where(v => v.Aktiv);
+
+    private DateTime? _buchungenVon;
+    private DateTime? _buchungenBis;
+
+    private bool _showStunden = true;
+    private bool _showAktivitaeten;
+    private bool _isLoading = true;
+    private bool _showBuchungen;
+    private bool _isVisibleDeleteConfirm;
+    private bool _isVisibleCancelConfirm;
+    private bool HasProjekte => _projekte.Count > 0;
+
+    private string _backgroundTheme = "bg-light";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Benutzer == null || Benutzer.MitarbeiterId == null)
+            throw new Exception("Kein Benutzer gefunden");
+
+        _backgroundTheme = $"bg-{Benutzer!.ThemeMode.ToString()!.ToLower()}";
+
+        MitarbeiterId = (Guid)Benutzer.MitarbeiterId;
+
+        if(KundenId == Guid.Empty)
+        {
+            _selectedKunde = new Kunde();
+            _selectedKunde.Aktiv = true;
+        }
+        else
+        {
+            _selectedKunde = await KundenService.GetAsync(KundenId);
+            _projekte = await ProjektService.ProjectsByCustomerIdAsync(KundenId, EnumStatus.Alle);
+        }
+
+        _selectedKundeOriginal = _selectedKunde.Clone();
+        _editContextKunde = new(_selectedKunde);
+
+        _teams = await TeamService.GetAllAsync();
+        _isLoading = false;
+        StateHasChanged();
+
+        if (ProjektId != null && ProjektId != Guid.Empty)
+        {
+            var selectProjekt = _projekte.SingleOrDefault(p => p.Id == ProjektId);
+            if (selectProjekt != null)
+            {
+                await SelectProjekt(selectProjekt);
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await FocusOn("textbox_kunde_bezeichnung");
+        }
+    }
+
+    private async Task OnSaveKunde()
+    {
+        _selectedKunde = await KundenService.SaveSingleAsync(_selectedKunde!);
+        NavigationManager.NavigateTo($"/intern/kunden/{_selectedKunde.Id}", true);
+    }
+
+    private async Task OnSaveProjekt()
+    {
+        var model = await ProjektService.SaveSingleAsync(_selectedProjekt!);
+        _selectedProjekt = model.Clone();
+        _selectedProjektOriginal = _selectedProjekt.Clone();
+        _editContextProjekt = new(_selectedProjekt!);
+        _projekte = await ProjektService.ProjectsByCustomerIdAsync(KundenId);
+    }
+
+    private async Task OnSaveAktivitaet()
+    {
+        if (!_showStunden)
+        {
+            _selectedAktivitaet!.AnzahlStunden *= 8;
+        }
+
+        var model = await VorgangService.SaveSingleAsync(_selectedAktivitaet!);
+        _selectedAktivitaet = model.Clone();
+        _selectedAktivitaetOriginal = _selectedAktivitaet.Clone();
+        _editContextAktivitaet = new(_selectedAktivitaet!);
+        _aktivitaeten = await VorgangService.GetAllProjecIdAsync(_selectedProjekt!.Id, false);
+        _showStunden = true;
+    }
+
+    private void Return(bool force = false)
+    {
+        if (HasChanges && !force)
+        {
+            _isVisibleCancelConfirm = true;
+        }
+        else{
+            NavigationManager.NavigateTo("/intern/kunden");
+        }
+    }
+
+    private async Task SelectProjekt(Projekt? model)
+    {
+        if(model != null)
+        {
+            if(model.Id == Guid.Empty)
+            {
+                model.KundeId = KundenId;
+                model.Aktiv = true;
+            }
+            _selectedProjekt = model.Clone();
+            _selectedProjektOriginal = _selectedProjekt.Clone();
+
+            _editContextProjekt = new(_selectedProjekt!);
+            StateHasChanged();
+
+            _aktivitaeten = await VorgangService.GetAllProjecIdAsync(_selectedProjekt!.Id, false);
+            _selectedAktivitaet = null;
+            _selectedAktivitaetOriginal = null;
+
+            await ScrollTo("box_projekt");
+            await FocusOn("textbox_projekt_bezeichnung");
+
+            _showBuchungen = false;
+            _showAktivitaeten = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SelectAktivitaet(Vorgang? model)
+    {
+        if(model != null)
+        {
+            if(model.Id == Guid.Empty)
+            {
+                model.ProjektId = _selectedProjekt!.Id;
+                model.Aktiv = true;
+            }
+
+            _showStunden = true;
+            _selectedAktivitaet = model.Clone();
+            _selectedAktivitaetOriginal = _selectedAktivitaet.Clone();
+            _editContextAktivitaet = new(_selectedAktivitaet!);
+
+            await ScrollTo("box_aktivitaet");
+            await FocusOn("textbox_aktivitaet_bezeichnung");
+
+            _buchungen = null;
+            _showBuchungen = false;
+        }
+    }
+
+    private void OnSwitch(bool value)
+    {
+        _showStunden = value;
+        if (_showStunden)
+        {
+            if (_selectedAktivitaet!.AnzahlStunden > 0)
+            {
+                _selectedAktivitaet.AnzahlStunden *= 8;
+            }
+        }
+        else
+        {
+            if (_selectedAktivitaet!.AnzahlStunden > 0)
+            {
+                _selectedAktivitaet.AnzahlStunden /= 8;
+            }
+        }
+    }
+
+    private async Task ShowBuchungen()
+    {
+        _buchungenVon = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        _buchungenBis = DateTime.Today;
+        _buchungen = null;
+        _showBuchungen = true;
+        await ScrollTo("box_buchungen");
+        StateHasChanged();
+    }
+
+    private async Task LoadBuchungen()
+    {
+        if (_selectedKunde == null || _selectedProjekt == null || _selectedAktivitaet == null) return;
+
+        var von = _buchungenVon.HasValue ? DateOnly.FromDateTime(_buchungenVon.Value) : (DateOnly?)null;
+        var bis = _buchungenBis.HasValue ? DateOnly.FromDateTime(_buchungenBis.Value) : (DateOnly?)null;
+        _buchungen = await BuchungsService.SucheBuchungAsync(null, null, _selectedKunde.Id, _selectedProjekt.Id, _selectedAktivitaet.Id, von, bis);
+        StateHasChanged();
+    }
+
+    private async Task ScrollTo(string elementId)
+    {
+        await JsRuntime.InvokeVoidAsync("ScrollToElementId", elementId);
+    }
+
+    private async Task FocusOn(string elementId)
+    {
+        await JsRuntime.InvokeVoidAsync("FocusElementById", elementId);
+    }
+
+    private void Delete(object model)
+    {
+        _objectToDelete = model;
+        _isVisibleDeleteConfirm = true;
+    }
+
+    private async Task DeleteConfirm(bool shouldDelete)
+    {
+        if (shouldDelete && _objectToDelete != null)
+        {
+            if (_objectToDelete!.GetType() == typeof(Kunde))
+            {
+                await KundenService.DeleteAsync((Kunde)_objectToDelete);
+                Return(true);
+            }
+
+            if (_objectToDelete!.GetType() == typeof(Projekt))
+            {
+                _projekte = await ProjektService.DeleteAsync((Projekt)_objectToDelete);
+                _selectedProjekt = null;
+            }
+
+            if (_objectToDelete!.GetType() == typeof(Vorgang))
+            {
+                _aktivitaeten = await VorgangService.DeleteAsync((Vorgang)_objectToDelete);
+                _selectedAktivitaet = null;
+                _showBuchungen = false;
+                _buchungen = null;
+            }
+        }
+        _isVisibleDeleteConfirm = false;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    ///     Handler to confirm the canceling
+    /// </summary>
+    /// <param name="shouldCancel">Cancel or not</param>
+    private void CancelConfirm(bool shouldCancel)
+    {
+        if (shouldCancel)
+        {
+            Return(true);
+            return;
+        }
+        _isVisibleCancelConfirm = false;
+        StateHasChanged();
+    }
+}

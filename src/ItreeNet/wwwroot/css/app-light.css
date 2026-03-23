@@ -1,0 +1,12 @@
+﻿.bg-tilelayout {
+    background-color: white !important;
+}
+
+.tdHighlight {
+    background-color: yellow !important;
+}
+
+.tooltip-table {
+    color: aliceblue;
+    margin: 0
+}

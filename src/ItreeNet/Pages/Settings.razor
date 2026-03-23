@@ -1,0 +1,380 @@
+@page "/intern/einstellungen"
+@attribute [Authorize(Policy = "internPolicy")]
+@using System.Collections.ObjectModel
+@inject IArbeitszeitService ArbeitszeitService
+@inject IArbeitszeitReduktionService ArbeitszeitReduktionService
+@inject ITeamService TeamService
+@inject ILogger<Settings> Logger
+@layout Layout
+
+<h3 class="text-gray-800">Einstellungen</h3>
+
+@if (_isLoading)
+{
+    <ItreeSpinner />
+}
+else
+{
+    <Divider Title="Allgemein" Category="EnumSettingCategory.Allgemein"/>
+    @*###### Teams ######*@
+    <div class="card bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow">
+        <SettingCardHeader Title="Teams" Category="EnumSettingCategory.Allgemein" @bind-IsVisible="@_showTeam" />
+        @if (_showTeam)
+        {
+            <div class="card-body bg-@Benutzer!.ThemeMode.ToString()!.ToLower()">
+                <MudDataGrid T="Team" Items="_teams" Dense="true" Hover="true" Bordered="true" Striped="true"
+                             SortMode="SortMode.Multiple" FilterMode="DataGridFilterMode.ColumnFilterRow">
+                    <Columns>
+                        <PropertyColumn Property="x => x.Bezeichnung" Title="Bezeichnung" />
+                        <PropertyColumn Property="x => x.Sort" Title="Sort" />
+                        <TemplateColumn Title="Aktiv">
+                            <CellTemplate Context="item">
+                                @if (item.Item.Aktiv)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn>
+                            <HeaderTemplate>
+                                <div class="new-entry" @onclick="@(() => OpenDialog(new Team(), "new"))">
+                                    <MudIcon Icon="@Icons.Material.Filled.Add" />
+                                </div>
+                            </HeaderTemplate>
+                            <CellTemplate Context="item">
+                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenDialog(item.Item, "edit"))" Size="Size.Small" />
+                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog(item.Item, "delete"))" Size="Size.Small" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            </div>
+        }
+    </div>
+    <br />
+
+    <Divider Title="Zeiterfassung" Category="EnumSettingCategory.Zeiterfassung"/>
+
+    @*###### Arbeitszeiten ######*@
+    <div class="card bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow">
+        <SettingCardHeader Title="Arbeitszeiten" Category="EnumSettingCategory.Zeiterfassung" @bind-IsVisible="@_showArbeitszeiten" />
+        @if (_showArbeitszeiten)
+        {
+            <div class="card-body bg-@Benutzer!.ThemeMode.ToString()!.ToLower()">
+                <MudDataGrid T="Arbeitszeit" Items="@(_arbeitszeiten?.Where(a => a.Jahr == _arbeitszeitJahr).ToList())" Dense="true" Hover="true" Bordered="true" Striped="true"
+                             SortMode="SortMode.Multiple" FilterMode="DataGridFilterMode.ColumnFilterRow">
+                    <ToolBarContent>
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" OnClick="@(() => _arbeitszeitJahr--)" />
+                        <span style="min-width: 40px; text-align: center;">@_arbeitszeitJahr</span>
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" OnClick="@(() => _arbeitszeitJahr++)" />
+                    </ToolBarContent>
+                    <Columns>
+                        <PropertyColumn Property="x => x.Jahr" Title="Jahr" />
+                        <PropertyColumn Property="x => x.Monat" Title="Monat" />
+                        <PropertyColumn Property="x => x.Zeit" Title="Zeit" />
+                        <PropertyColumn Property="x => x.Tagesarbeitszeit" Title="Tagesarbeitszeit" />
+                        <TemplateColumn>
+                            <HeaderTemplate>
+                                <div class="new-entry" @onclick="@(() => OpenDialog(new Arbeitszeit(), "new"))">
+                                    <MudIcon Icon="@Icons.Material.Filled.Add" />
+                                </div>
+                            </HeaderTemplate>
+                            <CellTemplate Context="item">
+                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenDialog(item.Item, "edit"))" Size="Size.Small" />
+                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog(item.Item, "delete"))" Size="Size.Small" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            </div>
+        }
+    </div>
+    <br />
+    @*###### Arbeitszeitreduktionen ######*@
+    <div class="card bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow">
+        <SettingCardHeader Title="Arbeitszeitreduktionen" Category="EnumSettingCategory.Zeiterfassung" @bind-IsVisible="@_showArbeitszeitreduktion" />
+        @if (_showArbeitszeitreduktion)
+        {
+            <div class="card-body bg-@Benutzer!.ThemeMode.ToString()!.ToLower()">
+                <MudDataGrid T="ArbeitszeitReduktion" Items="@(_arbeitszeitReduktionen?.Where(r => r.Datum.Year == _reduktionJahr).ToList())" Dense="true" Hover="true" Bordered="true" Striped="true"
+                             SortMode="SortMode.Multiple" FilterMode="DataGridFilterMode.ColumnFilterRow">
+                    <ToolBarContent>
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" OnClick="@(() => _reduktionJahr--)" />
+                        <span style="min-width: 40px; text-align: center;">@_reduktionJahr</span>
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" OnClick="@(() => _reduktionJahr++)" />
+                    </ToolBarContent>
+                    <Columns>
+                        <TemplateColumn Title="Datum">
+                            <CellTemplate Context="item">
+                                @item.Item.Datum.ToString("d")
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="x => x.Reduktion" Title="Reduktion" />
+                        <TemplateColumn>
+                            <HeaderTemplate>
+                                <div class="new-entry" @onclick="@(() => OpenDialog(new ArbeitszeitReduktion(), "new"))">
+                                    <MudIcon Icon="@Icons.Material.Filled.Add" />
+                                </div>
+                            </HeaderTemplate>
+                            <CellTemplate Context="item">
+                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenDialog(item.Item, "edit"))" Size="Size.Small" />
+                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog(item.Item, "delete"))" Size="Size.Small" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            </div>
+        }
+    </div>
+    <br />
+}
+
+@*Arbeitszeiten Window*@
+<ItreeFormWindow WindowVisible="@_showArbeitszeitenWindow"
+                 Model="@_selectedArbeitszeit"
+                 Validator="@(new ArbeitszeitValidator())"
+                 OnSave="@OnSave"
+                 OnClose="@OnClose"
+                 AutoGenerate="true"
+                 Writeable="true"
+                 Category="EnumSettingCategory.Zeiterfassung" />
+
+@*ArbeitszeitReduktion Window*@
+<ItreeFormWindow WindowVisible="@_showArbeitszeitreduktionWindow"
+                 Model="@_selectedArbeitszeitReduktion"
+                 Validator="@(new ArbeitszeitReduktionValidator())"
+                 OnSave="@OnSave"
+                 OnClose="@OnClose"
+                 AutoGenerate="true"
+                 Writeable="true"
+                 Category="EnumSettingCategory.Zeiterfassung" />
+
+<ItreeFormWindow WindowVisible="@_showTeamWindow"
+                 Model="@_selectedTeam"
+                 Validator="@(new TeamValidator())"
+                 OnSave="@OnSave"
+                 OnClose="@OnClose"
+                 AutoGenerate="true"
+                 Writeable="true"
+                 Category="EnumSettingCategory.Allgemein" />
+
+
+@*Confirm delete*@
+<ConfirmWindow IsVisible="@_isVisibleDeleteConfirm" CheckHandler="@DeleteConfirm" Type="EnumConfirmType.Delete" />
+
+@*Confirm cancel when changes are not saved*@
+<ConfirmWindow IsVisible="@_isVisibleCancelConfirm" CheckHandler="@CancelConfirm" Type="EnumConfirmType.Cancel" />
+
+@code {
+    [CascadingParameter]
+    public Benutzer? Benutzer { get; set; }
+
+    public Guid MitarbeiterId { get; set; }
+
+    //private List<Mitarbeiter>? _mitarbeiter;
+    private List<Arbeitszeit>? _arbeitszeiten;
+    private List<ArbeitszeitReduktion>? _arbeitszeitReduktionen;
+    private List<Team>? _teams;
+    private string? _selectedType;
+    private List<ItreeFormDropdown> _teamDropdowns = new();
+
+    //private Mitarbeiter? _selectedMitarbeiter;
+    private Arbeitszeit? _selectedArbeitszeit;
+    private ArbeitszeitReduktion? _selectedArbeitszeitReduktion;
+    private Team? _selectedTeam;
+
+    private bool _isLoading = true;
+    private bool _isVisibleDeleteConfirm;
+    private bool _isVisibleCancelConfirm;
+
+    private bool _showArbeitszeiten;
+    private bool _showArbeitszeitreduktion;
+    private bool _showTeam;
+
+    private int _arbeitszeitJahr = DateTime.Now.Year;
+    private int _reduktionJahr = DateTime.Now.Year;
+
+    private bool _showArbeitszeitenWindow;
+    private bool _showArbeitszeitreduktionWindow;
+    private bool _showTeamWindow;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Benutzer == null || Benutzer.MitarbeiterId == null)
+            throw new Exception("Kein Benutzer gefunden");
+
+        MitarbeiterId = (Guid)Benutzer.MitarbeiterId;
+
+        _arbeitszeiten = await ArbeitszeitService.GetAllAsync();
+        _arbeitszeitReduktionen = await ArbeitszeitReduktionService.GetAllAsync();
+        _teams = await TeamService.GetAllAsync();
+
+        var teamDropDownList = new ObservableCollection<Team>(_teams.Where(k => k.Aktiv).ToList());
+        var teamDropdown = BaseExtension.CreateItreeFormDropdown(teamDropDownList, "TeamId", nameof(Team.Bezeichnung), "Team");
+        _teamDropdowns.Add(teamDropdown);
+
+        _isLoading = false;
+    }
+
+    #region Window
+
+    private async Task OnSave()
+    {
+        switch (_selectedType)
+        {
+            case "arbeitszeit":
+                _arbeitszeiten = await ArbeitszeitService.SaveAsync(_selectedArbeitszeit!);
+                _showArbeitszeitenWindow = false;
+                break;
+            case "arbeitszeitreduktion":
+                _arbeitszeitReduktionen = await ArbeitszeitReduktionService.SaveAsync(_selectedArbeitszeitReduktion!);
+                _showArbeitszeitreduktionWindow = false;
+                break;
+            case "team":
+                _teams = await TeamService.SaveAsync(_selectedTeam!);
+                _showTeamWindow = false;
+                break;
+        }
+    }
+
+    private void OnClose(bool hasChanges)
+    {
+        if (!hasChanges)
+        {
+            _showArbeitszeitenWindow = false;
+            _showArbeitszeitreduktionWindow = false;
+            _showTeamWindow = false;
+        }
+        else
+        {
+            _isVisibleCancelConfirm = true;
+        }
+    }
+
+    private async Task DeleteConfirm(bool shouldDelete)
+    {
+        if (shouldDelete)
+        {
+            try
+            {
+                switch (_selectedType)
+                {
+                    case "arbeitszeit":
+                        _arbeitszeiten = await ArbeitszeitService.DeleteAsync(_selectedArbeitszeit!);
+                        break;
+                    case "arbeitszeitreduktion":
+                        _arbeitszeitReduktionen = await ArbeitszeitReduktionService.DeleteAsync(_selectedArbeitszeitReduktion!);
+                        break;
+                    case "team":
+                        _teams = await TeamService.DeleteAsync(_selectedTeam!);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "DeleteConfirm failed");
+            }
+        }
+        _isVisibleDeleteConfirm = false;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    ///     Handler to confirm the canceling
+    /// </summary>
+    /// <param name="shouldCancel">Cancel or not</param>
+    private void CancelConfirm(bool shouldCancel)
+    {
+        if (shouldCancel)
+        {
+            switch (_selectedType)
+            {
+                case "arbeitszeit":
+                    _showArbeitszeitenWindow = false;
+                    break;
+                case "arbeitszeitreduktion":
+                    _showArbeitszeitreduktionWindow = false;
+                    break;
+                case "team":
+                    _showTeamWindow = false;
+                    break;
+            }
+        }
+        _isVisibleCancelConfirm = false;
+        StateHasChanged();
+    }
+
+    private void OpenDialog<T>(T obj, string action)
+    {
+        var typeName = obj!.GetType().Name.ToLower();
+        _selectedType = typeName;
+
+        switch (typeName)
+        {
+            case "arbeitszeit":
+                switch (action)
+                {
+                    case "delete":
+                        _selectedArbeitszeit = obj as Arbeitszeit;
+                        _isVisibleDeleteConfirm = true;
+                        break;
+                    case "new":
+                        _selectedArbeitszeit = (obj as Arbeitszeit).Clone();
+                        _selectedArbeitszeit!.Tagesarbeitszeit = 8;
+                        _selectedArbeitszeit.Jahr = DateTime.Today.Year + 1;
+                        _selectedArbeitszeit.Monat = 1;
+                        _showArbeitszeitenWindow = true;
+                        break;
+                    default:
+                        _selectedArbeitszeit = (obj as Arbeitszeit).Clone();
+                        _showArbeitszeitenWindow = true;
+                        break;
+                }
+                break;
+            case "arbeitszeitreduktion":
+                switch (action)
+                {
+                    case "delete":
+                        _selectedArbeitszeitReduktion = obj as ArbeitszeitReduktion;
+                        _isVisibleDeleteConfirm = true;
+                        break;
+                    case "new":
+                        _selectedArbeitszeitReduktion = (obj as ArbeitszeitReduktion).Clone();
+                        _selectedArbeitszeitReduktion!.Datum = DateOnly.FromDateTime(DateTime.Today);
+                        _showArbeitszeitreduktionWindow = true;
+                        break;
+                    default:
+                        _selectedArbeitszeitReduktion = (obj as ArbeitszeitReduktion).Clone();
+                        _showArbeitszeitreduktionWindow = true;
+                        break;
+                }
+                break;
+            case "team":
+                switch(action)
+                {
+                    case "delete":
+                        _selectedTeam = obj as Team;
+                        _isVisibleDeleteConfirm = true;
+                        break;
+                    case "new":
+                        _selectedTeam = (obj as Team).Clone();
+                        _selectedTeam!.Aktiv = true;
+                        _selectedTeam!.Sort = _teams!.Any() ? _teams!.Max(w => w.Sort) + 1 : 1;
+                        _showTeamWindow = true;
+                    break;
+                    default:
+                        _selectedTeam = (obj as Team).Clone();
+                        _showTeamWindow = true;
+                        break;
+                }
+            break;
+        }
+    }
+
+    #endregion
+
+}

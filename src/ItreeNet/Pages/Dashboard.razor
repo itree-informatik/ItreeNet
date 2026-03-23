@@ -1,0 +1,1061 @@
+@page "/intern"
+@attribute [Authorize]
+@using ClosedXML.Excel
+@inject IDashboardService DashboardService
+@inject IBuchungsService BuchungsService
+@inject IMitarbeiterService MitarbeiterService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JsRuntime
+@layout Layout
+
+<h3 class="text-gray-800">Dashboard</h3>
+@if (Benutzer != null)
+{
+    @*Boxes*@
+    <div class="row">
+        @if (_loadingBoxes)
+        {
+            <ItreeSpinner />
+        }
+        else
+        {
+            <!-- Feriensaldo -->
+            <div class="col-xl-2 col-md-6 mb-4">
+                <div class="card border-left-primary shadow h-100 @_backgroundTheme">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                    Guthaben Ferien
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">@_ferienSaldo Tage</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-globe-europe-africa text-gray-300 fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aktuelles Feriensaldo -->
+            <div class="col-xl-2 col-md-6 mb-4">
+                <div class="card border-left-danger shadow h-100 @_backgroundTheme">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                    Aktueller Ferien Stand
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">@_ferienSaldoAktuell Tage</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-tsunami text-gray-300 fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stundensaldo -->
+            <div class="col-xl-2 col-md-6 mb-4">
+                <div class="card border-left-info shadow h-100 @_backgroundTheme">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                    Guthaben Stunden
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">@_stundenSaldo h</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-clock text-gray-300 fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (_dashboardAktuellesSaldo != null)
+            {
+                <!-- Aktuelles Stundensaldo -->
+                <div class="col-xl-2 col-md-6 mb-4">
+                    <div class="card border-left-secondary shadow h-100 @_backgroundTheme">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+                                        Aktueller Stand per @_dashboardAktuellesSaldo.Datum.ToString("d")
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">@_dashboardAktuellesSaldo.Stunden h</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-clock-history text-gray-300 fs-2"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Monatsabschluss -->
+            <div class="col-xl-2 col-md-6 mb-4" @onclick="@(() => _showAbschluss = true)" style="cursor: pointer;">
+                <div class="card border-left-warning shadow h-100 @_backgroundTheme">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                    Monatsabschluss
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                    @{
+                                        var text = _isMonatsAbschlussDone ? "Erledigt" : "Ausstehend";
+                                        @text
+                                    }
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                @{
+                                    var icon = _isMonatsAbschlussDone ? "bi-clipboard2-check" : "bi-clipboard2-x";
+                                    <i class="bi @icon text-gray-300 fs-2"></i>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @*Tiles - replaced TelerikTileLayout with MudGrid*@
+    <MudGrid Class="bg-tilelayout" Style="margin-left: -16px; margin-right: -16px;">
+        <!-- Top 5 Buchungen (ColSpan=2 -> md=8) -->
+        <MudItem xs="12" md="8">
+            <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
+                <div class="row no-gutters align-items-center mb-2">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Top 5</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Buchungen</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-trophy text-gray-300 fs-2"></i>
+                    </div>
+                </div>
+                @if (_topBuchungen != null)
+                {
+                    var count = 0;
+                    @foreach (var buchung in _topBuchungen)
+                    {
+                        var cssClass = string.Empty;
+                        switch (count)
+                        {
+                            case 0: cssClass = "bg-primary"; break;
+                            case 1: cssClass = "bg-success"; break;
+                            case 2: cssClass = "bg-info"; break;
+                            case 3: cssClass = "bg-warning"; break;
+                            case 4: cssClass = "bg-danger"; break;
+                        }
+                        count++;
+                        <div class="col mb-3">
+                            <div class="mb-0 font-weight-bold text-gray-800">@buchung.KundenName - @buchung.ProjektName - @buchung.Vorgang?.Bezeichnung</div>
+                            <div class="progress progress-sm mr-2">
+                                <div class="progress-bar @cssClass" role="progressbar"
+                                     style="width: @(_maxBuchungsStunden > 0 ? 100 / _maxBuchungsStunden * buchung.Zeit : 0)%" aria-valuenow="@buchung.Zeit" aria-valuemin="0"
+                                     aria-valuemax="@_maxBuchungsStunden">
+                                    @buchung.Zeit h
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <ItreeSpinner />
+                }
+            </MudPaper>
+        </MudItem>
+
+        <!-- Provisorische Buchungen (ColSpan=1 -> md=4) -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
+                <div class="row no-gutters align-items-center mb-2">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Offene Buchungen</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Provisorische Buchungen</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-pencil-square text-gray-300 fs-2"></i>
+                    </div>
+                </div>
+                @if (_provisorischeBuchungen != null)
+                {
+                    @if (_provisorischeBuchungen.Count == 0)
+                    {
+                        <div class="text-gray-600">Keine provisorischen Buchungen vorhanden.</div>
+                    }
+                    else
+                    {
+                        <table class="table table-sm table-borderless @_tableTheme table-hover table-striped">
+                            <thead>
+                                <tr class="text-gray-800">
+                                    <td>Datum</td>
+                                    <td>Projekt / Vorgang</td>
+                                    <td>Zeit</td>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var buchung in _provisorischeBuchungen)
+                                {
+                                    <tr class="text-gray-800 pointer" @onclick="@(() => NavigationManager.NavigateTo($"/intern/zeiterfassung/buchungen"))">
+                                        <td>@buchung.Datum.ToString("dd.MM.yyyy")</td>
+                                        <td>@buchung.ProjektName - @buchung.Vorgang?.Bezeichnung</td>
+                                        <td>@buchung.Zeit h</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                }
+                else
+                {
+                    <ItreeSpinner />
+                }
+            </MudPaper>
+        </MudItem>
+
+        @if (Benutzer.IsAdmin)
+        {
+            <!-- Mitarbeitersaldos (ColSpan=1 -> md=4) -->
+            <MudItem xs="12" md="4">
+                <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
+                    <div class="row no-gutters align-items-center mb-2">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Aktive Mitarbeiter</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">Mitarbeitersaldos</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-robot text-gray-300 fs-2"></i>
+                        </div>
+                    </div>
+                    @if (_dashboardMitarbeiter != null)
+                    {
+                        <MudDataGrid T="DashboardMitarbeiter" Items="_dashboardMitarbeiter" Dense="true" Hover="true" Bordered="true" Striped="true"
+                                     Filterable="false" SortMode="SortMode.None" Class="text-gray-800">
+                            <Columns>
+                                <PropertyColumn Property="x => x.Fullname" Title="Mitarbeiter" />
+                                <TemplateColumn Title="Intern">
+                                    <CellTemplate Context="item">
+                                        @if (item.Item.Intern)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                                        }
+                                    </CellTemplate>
+                                </TemplateColumn>
+                                <PropertyColumn Property="x => x.StundenSaldo" Title="StundenSaldo" />
+                                <PropertyColumn Property="x => x.FerienSaldo" Title="FerienSaldo" />
+                                <TemplateColumn Title="Abgeschlossen">
+                                    <CellTemplate Context="item">
+                                        @if (item.Item.BuchungAbgeschlossen)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                                        }
+                                    </CellTemplate>
+                                </TemplateColumn>
+                            </Columns>
+                        </MudDataGrid>
+                    }
+                    else
+                    {
+                        <ItreeSpinner />
+                    }
+                </MudPaper>
+            </MudItem>
+        }
+
+        <!-- Projekt Buchungen (ColSpan=2 -> md=8) -->
+        <MudItem xs="12" md="8">
+            <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
+                <div class="row no-gutters align-items-center mb-2">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Aktive Projekte</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Projekt Buchungen</div>
+                    </div>
+                    <div class="col-auto text-gray-300 generate-excel" @onclick="GenerateExcel">
+                        <i class="bi bi-file-bar-graph fs-2"></i>
+                    </div>
+                </div>
+                @if (_dashboardProjekts != null)
+                {
+                    <div style="height: 100%; overflow: auto;">
+                        <table class="table table-sm table-borderless @_tableTheme table-hover table-striped">
+                            <thead>
+                                <tr class="text-gray-800">
+                                    <td>Kunde</td>
+                                    <td>Projekt</td>
+                                    <td>Aufwände %</td>
+                                    <td>Gebucht</td>
+                                    <td>Offen</td>
+                                    <td>Gesamt</td>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var project in _dashboardProjekts!)
+                                {
+                                    <tr @onclick="@(() => OnRowClick(project.KundenId, project.Id))" class="text-gray-800 pointer">
+                                        <td>@project.KundenName</td>
+                                        <td>@project.Name</td>
+                                        <td>
+                                            <div class="progress progress-sm mr-2" style="min-width: 250px;">
+                                                @{
+                                                    var bgClass = "bg-info";
+                                                    if (project.Prozent is > 80 and < 95)
+                                                    {
+                                                        bgClass = "bg-warning";
+                                                    }
+                                                    else if (project.Prozent > 95)
+                                                    {
+                                                        bgClass = "bg-danger";
+                                                    }
+                                                }
+                                                <div class="progress-bar @bgClass" role="progressbar"
+                                                     style="width: @project.Prozent%; min-width: 20px; color: black;" aria-valuenow="@project.GebuchteStunden" aria-valuemin="0"
+                                                     aria-valuemax="@project.AnzahlStunden">
+                                                    @project.Prozent%
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>@project.GebuchteStunden h</td>
+                                        <td>@(project.AnzahlStunden - project.GebuchteStunden) h</td>
+                                        <td>@project.AnzahlStunden h</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <ItreeSpinner />
+                }
+            </MudPaper>
+        </MudItem>
+
+        <!-- Pipeline Status (ColSpan=1 -> md=4) -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
+                <div class="row no-gutters align-items-center mb-2">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Azure DevOps</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Pipeline Status</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-lightning text-gray-300 fs-2"></i>
+                    </div>
+                </div>
+                @if (_dashboardPipelinRuns != null)
+                {
+                    <table class="table table-sm table-borderless @_tableTheme table-hover table-striped">
+                        <thead>
+                            <tr class="text-gray-800">
+                                <td>Pipeline</td>
+                                <td>Result</td>
+                                <td>State</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var runs in _dashboardPipelinRuns!)
+                            {
+                                var resultTextClass = "text-info";
+                                if (runs.Result == "failed")
+                                {
+                                    resultTextClass = "text-danger";
+                                }
+                                else if (runs.Result == "succeeded")
+                                {
+                                    resultTextClass = "text-success";
+                                }
+                                else if (runs.Result == "canceled")
+                                {
+                                    resultTextClass = "text-warning";
+                                }
+                                <tr @onclick="@(() => OpenLink(runs.Link))" class="text-gray-800 pointer">
+                                    <td><strong>@runs.ProjectName</strong> - <i>@runs.PipelineName</i></td>
+                                    <td class="@resultTextClass"><strong>@runs.Result</strong></td>
+                                    <td><strong>@runs.Status</strong></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <ItreeSpinner />
+                }
+            </MudPaper>
+        </MudItem>
+
+        <!-- Produktivität (ColSpan=1 -> md=4) -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
+                <div class="row no-gutters align-items-center mb-2">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Performance</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Produktivität</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-lightning text-gray-300 fs-2"></i>
+                    </div>
+                </div>
+                @if (Benutzer.IsAdmin)
+                {
+                    <div class="d-flex">
+                        <MudNumericField @bind-Value="PerformanceJahr" />
+                        <MudSelect @bind-Value="@PerformanceMitarbeiterId" Style="width:100%;">
+                            <MudSelectItem Value="Guid.Empty">— Auswählen —</MudSelectItem>
+                            @if (_mitarbeiter != null)
+                            {
+                                @foreach (var item in _mitarbeiter)
+                                {
+                                    <MudSelectItem Value="item.Id">@item.Fullname</MudSelectItem>
+                                }
+                            }
+                        </MudSelect>
+                        <MudButton OnClick="GetPerformanceData" StartIcon="@Icons.Material.Filled.Search" Variant="Variant.Filled" Color="Color.Primary"
+                                   Disabled="@(!(PerformanceMitarbeiterId != Guid.Empty && PerformanceJahr > 2000))">Laden</MudButton>
+                    </div>
+                    <br />
+                }
+
+                @if (_personalPerformance == null && _teamPerformances == null)
+                {
+                    <ItreeSpinner />
+                }
+
+                @if (_personalPerformance != null)
+                {
+                    <strong>@_personalPerformance.Name Performances</strong>
+                    <div class="progress" style="height: 40px;">
+                        @foreach (var entry in _personalPerformance.Performances)
+                        {
+                            <div class="progress-bar @entry.Class" role="progressbar"
+                                 style="width: @(entry.Prozent.ToString("00"))%;"
+                                 aria-valuenow="@(entry.Wert)"
+                                 aria-valuemin="0"
+                                 aria-valuemax="@(entry.Total)">
+                                @entry.Name (@entry.Prozent.ToString("00")%)
+                            </div>
+                        }
+                    </div>
+                }
+                @if (_teamPerformances != null)
+                {
+                    foreach (var teamPerformance in _teamPerformances)
+                    {
+                        <strong>@teamPerformance.Name Performance</strong>
+                        <div class="progress" style="height: 40px;">
+                            @foreach (var entry in teamPerformance.Performances)
+                            {
+                                <div class="progress-bar @entry.Class" role="progressbar"
+                                     style="width: @(entry.Prozent.ToString("00"))%;"
+                                     aria-valuenow="@(entry.Wert)"
+                                     aria-valuemin="0"
+                                     aria-valuemax="@(entry.Total)">
+                                    @entry.Name (@entry.Prozent.ToString("00")%)
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+            </MudPaper>
+        </MudItem>
+
+        <!-- Frontendtests (ColSpan=2 -> md=8) -->
+        <MudItem xs="12" md="8">
+            <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
+                <div class="row no-gutters align-items-center mb-2">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Frontendtests AVG</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Testergebnisse</div>
+                    </div>
+                    <div class="col-auto text-gray-300 delete-tests">
+                        <i class="bi bi-trash fs-2" @onclick="@ToggleShowDelete"></i>
+                    </div>
+                </div>
+                @if (_dashboardFrontendtests != null)
+                {
+                    <div style="height: 100%; overflow: auto;">
+                        <table class="table table-sm table-borderless @_tableTheme table-hover table-striped">
+                            <thead>
+                                <tr class="text-gray-800">
+                                    <td>Id</td>
+                                    <td>Datum</td>
+                                    <td>Start</td>
+                                    <td>Ende</td>
+                                    <td>Ergebnis</td>
+                                    <td>Total</td>
+                                    <td>Korrekt</td>
+                                    <td>Fehlerhaft</td>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var test in _dashboardFrontendtests!)
+                                {
+                                    var resultTextClass = "text-info";
+                                    if (test.Ergebnis.ToLower().Contains("failed") || test.Ergebnis == "Testfile is missing")
+                                    {
+                                        resultTextClass = "text-danger";
+                                    }
+                                    else if (test.Ergebnis == "Completed")
+                                    {
+                                        resultTextClass = "text-success";
+                                    }
+                                    <tr class="text-gray-800 pointer" @onclick="@(() => ShowDetail(test))">
+                                        <td>@test.Id</td>
+                                        <td>@test.StartDatum.ToShortDateString()</td>
+                                        <td>@test.StartDatum.ToShortTimeString()</td>
+                                        <td>@test.EndDatum.ToShortTimeString()</td>
+                                        <td class="@resultTextClass"><strong>@test.Ergebnis</strong></td>
+                                        <td><strong>@test.Total</strong></td>
+                                        <td><strong>@test.Korrekt</strong></td>
+                                        <td><strong>@test.Fehlerhaft</strong></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <ItreeSpinner />
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @* Monatsabschluss Window *@
+    @if (_showAbschluss)
+    {
+        <MudOverlay Visible="true" DarkBackground="true" ZIndex="1300">
+            <MudPaper Class="pa-4" Style="width:350px;max-width:95vw;max-height:90vh;overflow-y:auto;">
+                <MudText Typo="Typo.h6" Class="mb-3"><strong>Monatsabschluss</strong></MudText>
+                <div class="mb-4">Monatsabschluss durchführen?</div>
+                @if (Benutzer.IsAdmin)
+                {
+                    <div class="row">
+                        <label for="dropdownlist_mitarbeiter">Mitarbeiter</label>
+                        <span>
+                            <MudSelect @bind-Value="@_selectedMitarbeiter" Style="width:100%;">
+                                @if (_mitarbeiter != null)
+                                {
+                                    @foreach (var item in _mitarbeiter)
+                                    {
+                                        <MudSelectItem Value="@((Guid?)item.Id)">@item.Fullname</MudSelectItem>
+                                    }
+                                }
+                            </MudSelect>
+                        </span>
+                    </div>
+                }
+                <div class="row">
+                    <label for="dropdownlist_jahr" style="padding-top: 5px;">Jahr</label>
+                    <span>
+                        <MudSelect @bind-Value="@_selectedJahr" Style="width:100%;">
+                            @if (_jahr != null)
+                            {
+                                @foreach (var item in _jahr)
+                                {
+                                    <MudSelectItem Value="item">@item</MudSelectItem>
+                                }
+                            }
+                        </MudSelect>
+                    </span>
+                </div>
+                <div class="row">
+                    <label for="dropdownlist_monat" style="padding-top: 5px;">Monat</label>
+                    <span>
+                        <MudSelect @bind-Value="@_selectedMonat" Style="width:100%;">
+                            @if (_monat != null)
+                            {
+                                @foreach (var item in _monat)
+                                {
+                                    <MudSelectItem Value="item">@item</MudSelectItem>
+                                }
+                            }
+                        </MudSelect>
+                    </span>
+                </div>
+                <div class="mt-4">
+                    <span>Liegen Jahr und Monat vor dem Vormonat werden alle Monatssaldo ab diesem Monat neu berechnet.</span>
+                    <span>Abschluss kann höchstens bis zum Vormonat gemacht werden.</span>
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                        <ButtonGroup Id="modal_confirm_buttons" Position="EnumButtonGroupPosition.Rechts">
+                            @if (_loadingAbschluss)
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" OnClick="@CreateAbschluss">
+                                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
+                                </MudButton>
+                            }
+                            else
+                            {
+                                <MudButton OnClick="@CreateAbschluss" StartIcon="@Icons.Material.Filled.Check" Variant="Variant.Filled" Color="Color.Primary"
+                                           Class="text-success" Disabled="!ButtonEnabled" />
+                            }
+                            <MudButton OnClick="@(() => _showAbschluss = false)" StartIcon="@Icons.Material.Filled.Close" Variant="Variant.Filled" Color="Color.Primary" Class="text-danger" />
+                        </ButtonGroup>
+                    </MudStack>
+                </div>
+            </MudPaper>
+        </MudOverlay>
+    }
+
+    @* Frontendtest Detail Window *@
+    @if (_showDetail)
+    {
+        <MudOverlay Visible="true" DarkBackground="true" ZIndex="1300">
+            <MudPaper Class="pa-4" Style="width:60vw;max-width:95vw;max-height:90vh;overflow-y:auto;">
+                <MudText Typo="Typo.h6" Class="mb-3"><strong>Details zu Frontendtest</strong></MudText>
+                @if (_selectedFrontendtest != null)
+                {
+                    <MudDataGrid T="FrontendtestDetail" Items="@_selectedFrontendtest.FrontendtestDetailListe" Dense="true" Hover="true" Bordered="true" Striped="true"
+                                 FilterMode="DataGridFilterMode.ColumnFilterRow"
+                                 RowClassFunc="@((item, _) => GetFrontendtestRowClass(item))">
+                        <Columns>
+                            <PropertyColumn Property="x => x.TestName" Title="Testname" />
+                            <PropertyColumn Property="x => x.Dauer" Title="Dauer" />
+                            <PropertyColumn Property="x => x.Ergebnis" Title="Ergebnis" />
+                            <TemplateColumn Title="StdOut">
+                                <CellTemplate Context="item">
+                                    @if (!string.IsNullOrEmpty(item.Item.StdOut))
+                                    {
+                                        <button class="btn btn-extra-small btn-outline-primary"
+                                                Title="@item.Item.StdOut"
+                                                @onclick="() => ShowInModal(item.Item.StdOut)">
+                                            ...
+                                        </button>
+                                    }
+                                </CellTemplate>
+                            </TemplateColumn>
+                            <TemplateColumn Title="Error">
+                                <CellTemplate Context="item">
+                                    @if (!string.IsNullOrEmpty(item.Item.ErrMessage))
+                                    {
+                                        <button class="btn btn-extra-small btn-outline-primary"
+                                                Title="@item.Item.ErrMessage"
+                                                @onclick="() => ShowInModal(item.Item.ErrMessage)">
+                                            ...
+                                        </button>
+                                    }
+                                </CellTemplate>
+                            </TemplateColumn>
+                            <TemplateColumn Title="St.Tr.">
+                                <CellTemplate Context="item">
+                                    @if (!string.IsNullOrEmpty(item.Item.StackTrace))
+                                    {
+                                        <button class="btn btn-extra-small btn-outline-primary"
+                                                Title="@item.Item.StackTrace"
+                                                @onclick="() => ShowInModal(item.Item.StackTrace)">
+                                            ...
+                                        </button>
+                                    }
+                                </CellTemplate>
+                            </TemplateColumn>
+                            <TemplateColumn Title="@_titel">
+                                <CellTemplate Context="item">
+                                    <div class="d-flex">
+                                        @if (item.Item.FrontendtestBildListe.Count > 0)
+                                        {
+                                            foreach (var screenshot in item.Item.FrontendtestBildListe)
+                                            {
+                                                <div class="pe-1">
+                                                    <button class="btn btn-extra-small btn-outline-primary"
+                                                            Title="@Path.GetFileName(screenshot.Verzeichnis.Replace("\\", "/"))"
+                                                            @onclick="() => OpenInNewTab(screenshot.BildBase64)">
+                                                        ...
+                                                    </button>
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                </CellTemplate>
+                            </TemplateColumn>
+                        </Columns>
+                        <PagerContent>
+                            <MudDataGridPager T="FrontendtestDetail" PageSizeOptions="@(new[] { 15, 50, 100 })" />
+                        </PagerContent>
+                    </MudDataGrid>
+                }
+                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                    <MudButton OnClick="() => _showDetail = false" StartIcon="@Icons.Material.Filled.Close" Variant="Variant.Filled" Color="Color.Primary">
+                        Schliessen
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudOverlay>
+    }
+
+    @* Show details of Frontendtest (text) *@
+    @if (_showDetailText)
+    {
+        <MudOverlay Visible="true" DarkBackground="true" ZIndex="1300">
+            <MudPaper Class="pa-4" Style="width:40vw;max-width:95vw;max-height:90vh;overflow-y:auto;">
+                <pre style="white-space: pre-wrap; word-break: break-word;">@_detailText</pre>
+                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                    <div class="pe-1">
+                        <MudButton OnClick="CopyToClipboard" StartIcon="@Icons.Material.Filled.ContentCopy" Variant="Variant.Filled" Color="Color.Primary">
+                            Kopieren
+                        </MudButton>
+                    </div>
+                    <div class="pe-2">
+                        <MudButton OnClick="@(() => _showDetailText = false)" StartIcon="@Icons.Material.Filled.Close" Variant="Variant.Filled" Color="Color.Primary">
+                            Schliessen
+                        </MudButton>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudOverlay>
+    }
+
+    @* Confirm delete frontendtests *@
+    @if (_showDeleteFrontendtests)
+    {
+        <MudOverlay Visible="true" DarkBackground="true" ZIndex="1300">
+            <MudPaper Class="pa-4" Style="width:280px;max-width:95vw;max-height:90vh;overflow-y:auto;">
+                <MudText Typo="Typo.h6" Class="mb-3">Löschen Frontendtestergebnisse</MudText>
+                <div class="p-2">
+                    Willst du bis auf die letzen 20 Frontendtests alle löschen?
+                </div>
+                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+                    <div class="pe-1">
+                        <MudButton OnClick="@DeleteFrontendtests" Variant="Variant.Filled" Color="Color.Primary" Disabled="_loadingDeleteFrontendtests">
+                            @if (_loadingDeleteFrontendtests)
+                            {
+                                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
+                            }
+                            else
+                            {
+                                <span class="bi bi-check text-success align-middle"></span>
+                            }
+                            Ja
+                        </MudButton>
+                    </div>
+                    <div class="pe-2">
+                        <MudButton OnClick="@ToggleShowDelete" Variant="Variant.Filled" Color="Color.Primary">
+                            <span class="bi bi-x text-danger align-middle"></span>
+                            Nein
+                        </MudButton>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudOverlay>
+    }
+}
+
+@code
+{
+    [CascadingParameter] public Benutzer? Benutzer { get; set; }
+
+    private bool _loadingBoxes = true;
+    private bool _loadingAbschluss;
+    private bool _showAbschluss;
+
+    private Guid _mitarbeiterId;
+    private decimal _ferienSaldo;
+    private decimal _stundenSaldo;
+    private decimal _ferienSaldoAktuell;
+    private bool _isMonatsAbschlussDone;
+    private List<Buchung>? _topBuchungen;
+    private decimal? _maxBuchungsStunden;
+    private List<Buchung>? _provisorischeBuchungen;
+    private List<DashboardProjekt>? _dashboardProjekts;
+    private List<DashboardMitarbeiter>? _dashboardMitarbeiter;
+    private DashboardAktuellesSaldo? _dashboardAktuellesSaldo;
+    private List<PipelineRuns>? _dashboardPipelinRuns;
+    private List<FrontendtestOverview>? _dashboardFrontendtests;
+    private List<PerformanceList>? _teamPerformances;
+    private PerformanceList? _personalPerformance;
+    private int PerformanceJahr { get; set; }
+    private Guid PerformanceMitarbeiterId { get; set; }
+
+    private List<ItreeNet.Data.Models.Mitarbeiter>? _mitarbeiter;
+    private Guid? _selectedMitarbeiter;
+    private List<int>? _jahr;
+    private int _selectedJahr = DateTime.Now.Month == 1 ? DateTime.Now.Year - 1 : DateTime.Now.Year;
+    private List<int>? _monat;
+    private int _selectedMonat = DateTime.Now.Month == 1 ? 12 : DateTime.Now.Month - 1;
+    private int _maxDatum;
+    private bool ButtonEnabled => _selectedJahr * 100 + _selectedMonat <= _maxDatum;
+
+    private string _tableTheme = "table-light";
+    private string _backgroundTheme = "bg-light";
+
+    private bool _showDetail;
+    private Frontendtest? _selectedFrontendtest;
+    private bool _showDetailText;
+    private string _detailText = string.Empty;
+    private string _titel = "Bild";
+    private bool _showDeleteFrontendtests;
+    private bool _loadingDeleteFrontendtests;
+
+    protected override void OnInitialized()
+    {
+        if (Benutzer == null || Benutzer.MitarbeiterId == null) return;
+
+        _tableTheme = $"table-{Benutzer.ThemeMode.ToString()!.ToLower()}";
+        _backgroundTheme = $"bg-{Benutzer.ThemeMode.ToString()!.ToLower()}";
+
+        _mitarbeiterId = (Guid)Benutzer.MitarbeiterId;
+
+        _jahr = new List<int>();
+        for (var jahr = DateTime.Today.Year; jahr > 2019; jahr--) _jahr.Add(jahr);
+
+        _monat = new List<int>();
+        for (var monat = 1; monat < 13; monat++) _monat.Add(monat);
+
+        _maxDatum = _selectedJahr * 100 + _selectedMonat;
+
+        PerformanceJahr = DateTime.Now.Year;
+        PerformanceMitarbeiterId = _mitarbeiterId;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        if (Benutzer == null || Benutzer.MitarbeiterId == null) return;
+
+        // alle Tasks sofort starten
+        var tMitarbeiter = MitarbeiterService.GetAllActiveAsync();
+
+        var tFerien = GetFerienSaldo(false);
+        var tFerienNow = GetFerienSaldo(true);
+        var tSaldo = DashboardService.GetStundenSaldoByMitarbeiterAsync(_mitarbeiterId);
+        var tSaldoAkt = DashboardService.GetStundenAktuellesSaldoByMitarbeiterAsync(_mitarbeiterId);
+        var tAbschluss = DashboardService.IsAbschlussDoneAsync(_mitarbeiterId);
+
+        var tTop = DashboardService.TopBuchungenAsync(_mitarbeiterId);
+        var tProv = DashboardService.GetProvisorischeBuchungenAsync(_mitarbeiterId);
+        var tMitarb = DashboardService.GetDashboardMitarbeiterAsync();
+        var tProj = DashboardService.GetProjectBookingsAsync();
+        var tPipes = DashboardService.GetPipelineRunsAsync();
+        var tFrontend = DashboardService.GetFrontendtestOverviewsAsync(100);
+        var tTeam = DashboardService.GetTeamProductivity(_mitarbeiterId);
+        var tPersonal = DashboardService.GetProductivity(_mitarbeiterId);
+
+        var all = new List<Task> { tMitarbeiter, tFerien, tFerienNow, tSaldo, tSaldoAkt, tAbschluss,
+                               tTop, tProv, tMitarb, tProj, tPipes, tFrontend, tTeam, tPersonal };
+
+        var boxPending = new HashSet<Task> { tFerien, tFerienNow, tSaldo, tSaldoAkt, tAbschluss };
+        var boxesDoneFlag = false;
+
+        while (all.Count > 0)
+        {
+            var done = await Task.WhenAny(all);
+
+            if (done == tMitarbeiter)
+            {
+                _mitarbeiter = await tMitarbeiter;
+                _selectedMitarbeiter = _mitarbeiterId;
+            }
+            else if (done == tFerien) _ferienSaldo = await tFerien;
+            else if (done == tFerienNow) _ferienSaldoAktuell = await tFerienNow;
+            else if (done == tSaldo) _stundenSaldo = await tSaldo;
+            else if (done == tSaldoAkt) _dashboardAktuellesSaldo = await tSaldoAkt;
+            else if (done == tAbschluss) _isMonatsAbschlussDone = await tAbschluss;
+            else if (done == tTop)
+            {
+                _topBuchungen = await tTop;
+                _maxBuchungsStunden = _topBuchungen.Any() ? _topBuchungen.Max(b => b.Zeit) : 0;
+            }
+            else if (done == tProv) _provisorischeBuchungen = await tProv;
+            else if (done == tMitarb) _dashboardMitarbeiter = await tMitarb;
+            else if (done == tProj) _dashboardProjekts = await tProj;
+            else if (done == tPipes) _dashboardPipelinRuns = await tPipes;
+            else if (done == tFrontend) _dashboardFrontendtests = await tFrontend;
+            else if (done == tTeam) _teamPerformances = await tTeam;
+            else if (done == tPersonal) _personalPerformance = await tPersonal;
+
+            // Box-Loading-Flag sobald alle Box-Tasks fertig
+            if (!boxesDoneFlag && boxPending.Contains(done))
+            {
+                boxPending.Remove(done);
+                if (boxPending.Count == 0)
+                {
+                    _loadingBoxes = false;
+                    boxesDoneFlag = true;
+                }
+            }
+
+            all.Remove(done);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+
+
+    private void NavigateTo(string path)
+    {
+        NavigationManager.NavigateTo(path);
+    }
+
+    private async Task OpenLink(string url)
+    {
+        await JsRuntime.InvokeVoidAsync("OpenLink", url);
+    }
+
+    private async Task<decimal> GetFerienSaldo(bool aktuell)
+    {
+        if (aktuell)
+        {
+            return await DashboardService.GetFerienAktuellesSaldoByMitarbeiterAsync(_mitarbeiterId);
+        }
+
+        return await DashboardService.GetFerienSaldoByMitarbeiterAsnyc(_mitarbeiterId);
+    }
+
+    private void OnRowClick(Guid? kundenId, Guid? projektId)
+    {
+        NavigationManager.NavigateTo($"/intern/kunden/{kundenId}/{projektId}");
+    }
+
+    private async Task CreateAbschluss()
+    {
+        _loadingAbschluss = true;
+        if (Benutzer!.IsAdmin)
+        {
+            await BuchungsService.MonatsAbschlussAdminAsync(_selectedMitarbeiter!.Value, _selectedJahr, _selectedMonat);
+        }
+        else
+        {
+            await BuchungsService.MonatsAbschlussAsync(_selectedJahr, _selectedMonat);
+        }
+
+        _ferienSaldo = await GetFerienSaldo(false);
+        _ferienSaldoAktuell = await GetFerienSaldo(true);
+        _stundenSaldo = await DashboardService.GetStundenSaldoByMitarbeiterAsync(_mitarbeiterId);
+        _dashboardAktuellesSaldo = await DashboardService.GetStundenAktuellesSaldoByMitarbeiterAsync(_mitarbeiterId);
+        _isMonatsAbschlussDone = await DashboardService.IsAbschlussDoneAsync(_mitarbeiterId);
+        _loadingAbschluss = false;
+        _showAbschluss = false;
+    }
+
+    private async Task GetPerformanceData()
+    {
+        _teamPerformances = await DashboardService.GetTeamProductivity(_mitarbeiterId, PerformanceJahr);
+        _personalPerformance = await DashboardService.GetProductivity(PerformanceMitarbeiterId, PerformanceJahr);
+        StateHasChanged();
+    }
+
+    private async Task GenerateExcel()
+    {
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Projekte");
+
+        worksheet.Cell(1, 1).Value = "Kunde";
+        worksheet.Cell(1, 2).Value = "Projekt";
+        worksheet.Cell(1, 3).Value = "Gebucht";
+        worksheet.Cell(1, 4).Value = "Offen";
+        worksheet.Cell(1, 5).Value = "Gesamt";
+
+        if (_dashboardProjekts != null)
+        {
+            for (var i = 0; i < _dashboardProjekts.Count; i++)
+            {
+                var project = _dashboardProjekts[i];
+                var row = i + 2;
+                worksheet.Cell(row, 1).Value = project.KundenName;
+                worksheet.Cell(row, 2).Value = project.Name;
+                worksheet.Cell(row, 3).Value = project.GebuchteStunden;
+                worksheet.Cell(row, 4).Value = project.AnzahlStunden - project.GebuchteStunden;
+                worksheet.Cell(row, 5).Value = project.AnzahlStunden;
+
+                worksheet.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
+                worksheet.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
+                worksheet.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
+            }
+
+            var maxKundenNameLength = _dashboardProjekts.Max(p => p.KundenName?.Length ?? 0);
+            var maxProjektNameLength = _dashboardProjekts.Max(p => p.Name?.Length ?? 0);
+
+            worksheet.Column(1).Width = Math.Max(maxKundenNameLength + 2, 10);
+            worksheet.Column(2).Width = Math.Max(maxProjektNameLength + 2, 10);
+            worksheet.Column(3).Width = 12;
+            worksheet.Column(4).Width = 12;
+            worksheet.Column(5).Width = 12;
+        }
+
+        byte[] fileBytes;
+        using (var stream = new MemoryStream())
+        {
+            workbook.SaveAs(stream);
+            fileBytes = stream.ToArray();
+        }
+
+        var base64 = Convert.ToBase64String(fileBytes);
+        var filename = $"Export_Projekt_Buchungen_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+
+        await JsRuntime.InvokeVoidAsync("DownloadFileFromBase64", filename, base64);
+    }
+
+    private async Task ShowDetail(FrontendtestOverview test)
+    {
+        _selectedFrontendtest = await DashboardService.GetFrontendtestDetailAsync(test.Id);
+
+        if (_selectedFrontendtest != null)
+        {
+            var hasPictures = _selectedFrontendtest.FrontendtestDetailListe.Any(d => d.FrontendtestBildListe.Count > 0);
+            if (hasPictures)
+            {
+                _titel = "Bilder";
+            }
+            else
+            {
+                _titel = string.Empty;
+            }
+        }
+
+        _showDetail = true;
+        StateHasChanged();
+    }
+
+    private async Task OpenInNewTab(string base64)
+    {
+        await JsRuntime.InvokeVoidAsync("openBase64Image", base64);
+    }
+
+    private void ShowInModal(string text)
+    {
+        _detailText = text;
+        _showDetailText = true;
+    }
+
+    private string GetFrontendtestRowClass(FrontendtestDetail item)
+    {
+        return item.Ergebnis == "Failed" ? "row-failed" : string.Empty;
+    }
+
+    private void ToggleShowDelete()
+    {
+        _showDeleteFrontendtests = !_showDeleteFrontendtests;
+    }
+
+    private async Task DeleteFrontendtests()
+    {
+        _loadingDeleteFrontendtests = true;
+        await DashboardService.DeleteFrontendtestsAsync(20);
+        _dashboardFrontendtests = await DashboardService.GetFrontendtestOverviewsAsync(100);
+        _loadingDeleteFrontendtests = false;
+        _showDeleteFrontendtests = false;
+    }
+
+    private async Task CopyToClipboard()
+    {
+        await JsRuntime.InvokeVoidAsync("CopyToClipboard", _detailText);
+    }
+}

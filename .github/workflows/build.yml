@@ -1,0 +1,200 @@
+name: Build & Deploy ItreeNet
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+env:
+  MAJOR: 1
+  MINOR: 0
+  DOCKER_REPO: ${{ vars.ACR_REPOSITORY }}
+  ACR_REGISTRY: ${{ vars.ACR_REGISTRY }}
+
+jobs:
+
+  # ──────────────────────────────────────────────
+  # Stage 1: Versioning
+  # ──────────────────────────────────────────────
+  versioning:
+    name: Versioning
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      assembly_version: ${{ steps.version.outputs.assembly_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            tag=$(git tag --list "release-${MAJOR}.${MINOR}.*" --sort=-v:refname | head -n 1)
+            if [ -z "$tag" ]; then
+              patch=0
+            else
+              patch=${tag##*.}
+              patch=$((patch + 1))
+            fi
+            version="${MAJOR}.${MINOR}.${patch}"
+            assembly_version="$version"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            tag=$(git tag --list "release-${MAJOR}.${MINOR}-PullRequest.*" --sort=-v:refname | head -n 1)
+            if [ -z "$tag" ]; then
+              patch=0
+            else
+              patch=${tag##*.}
+              patch=$((patch + 1))
+            fi
+            version="${MAJOR}.${MINOR}-PullRequest.${patch}"
+            assembly_version="${MAJOR}.${MINOR}"
+          else
+            branch_name="${GITHUB_REF_NAME}"
+            tag=$(git tag --list "release-${MAJOR}.${MINOR}-${branch_name}.*" --sort=-v:refname | head -n 1)
+            if [ -z "$tag" ]; then
+              patch=0
+            else
+              patch=${tag##*.}
+              patch=$((patch + 1))
+            fi
+            version="${MAJOR}.${MINOR}-${branch_name}.${patch}"
+            assembly_version="${MAJOR}.${MINOR}"
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "assembly_version=$assembly_version" >> "$GITHUB_OUTPUT"
+          echo "Version: $version (Assembly: $assembly_version)"
+
+  # ──────────────────────────────────────────────
+  # Stage 2: Build
+  # ──────────────────────────────────────────────
+  build:
+    name: Build
+    needs: versioning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore NuGet packages
+        run: dotnet restore src/ItreeNet.sln --configfile src/nuget.config
+
+      - name: Build solution
+        run: dotnet build src/ItreeNet.sln --no-restore -c Release
+
+  # ──────────────────────────────────────────────
+  # Stage 3: Publish (main only)
+  # ──────────────────────────────────────────────
+  publish:
+    name: Publish
+    needs: [versioning, build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.versioning.outputs.version }}
+      ASSEMBLY_VERSION: ${{ needs.versioning.outputs.assembly_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ env.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build Docker image
+        run: |
+          docker build -f src/Dockerfile \
+            --build-arg "ASSEMBLY_VERSION=${{ env.ASSEMBLY_VERSION }}" \
+            --build-arg "ASSEMBLY_INFO_VERSION=${{ env.VERSION }}" \
+            --build-arg "AUTOMAPPER_LICENSEKEY=${{ secrets.AUTOMAPPER_LICENSEKEY }}" \
+            -t "${{ env.ACR_REGISTRY }}/${{ env.DOCKER_REPO }}:${{ env.VERSION }}" \
+            -t "${{ env.ACR_REGISTRY }}/${{ env.DOCKER_REPO }}:latest" \
+            src/
+
+      # SBOM generation
+      - name: Install CycloneDX tools
+        run: |
+          dotnet tool install --global CycloneDX
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+          sudo wget -q https://github.com/CycloneDX/cyclonedx-cli/releases/latest/download/cyclonedx-linux-x64 -O /usr/local/bin/cyclonedx
+          sudo chmod +x /usr/local/bin/cyclonedx
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sudo sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM
+        run: |
+          IMAGE_ID=$(docker images -q "${{ env.ACR_REGISTRY }}/${{ env.DOCKER_REPO }}:latest")
+
+          dotnet-CycloneDX src/ItreeNet.sln -o . -ed --json -fn itree-sln-sbom.json -sn ItreeNet -sv ${{ env.VERSION }}
+          syft "$IMAGE_ID" -o cyclonedx-json@1.6 --file itree-docker-sbom.json
+          cyclonedx merge --input-files itree-sln-sbom.json itree-docker-sbom.json \
+            --output-format json --output-version v1_6 --output-file itree-sbom.json \
+            --version ${{ env.VERSION }} --name ItreeNet
+
+      - name: Update project version in Dependency-Track
+        run: |
+          curl --fail-with-body -sS -X PATCH "${{ secrets.DTRACK_URL }}/api/v1/project/${{ vars.DTRACK_PROJECT_ID }}" \
+            -H "X-Api-Key: ${{ secrets.DTRACK_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"version": "${{ env.VERSION }}"}'
+
+      - name: Upload SBOM to Dependency-Track
+        run: |
+          curl --fail-with-body -sS -X POST "${{ secrets.DTRACK_URL }}/api/v1/bom" \
+            -H "X-Api-Key: ${{ secrets.DTRACK_API_KEY }}" \
+            -H "Content-Type: multipart/form-data" \
+            -F "project=${{ vars.DTRACK_PROJECT_ID }}" \
+            -F "bom=@itree-sbom.json"
+
+      - name: Push Docker image
+        run: |
+          docker push "${{ env.ACR_REGISTRY }}/${{ env.DOCKER_REPO }}:${{ env.VERSION }}"
+          docker push "${{ env.ACR_REGISTRY }}/${{ env.DOCKER_REPO }}:latest"
+
+      - name: Tag release
+        run: |
+          git tag "release-${{ env.VERSION }}"
+          git push origin "release-${{ env.VERSION }}"
+
+  # ──────────────────────────────────────────────
+  # Stage 4: Deploy (main only)
+  # ──────────────────────────────────────────────
+  deploy:
+    name: Deploy
+    needs: publish
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Restart Azure Web App
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az webapp restart --name itree-website --resource-group itree-web

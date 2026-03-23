@@ -1,0 +1,50 @@
+﻿<div class="card-header border-left-@_colorTheme h-100">
+    <div class="card-title" @onclick="@VisibleChanged" style="cursor: pointer;">
+        <div class="row no-gutters align-items-center ps-1 pe-1">
+            <div class="col mr-2">
+                <div class="h5 ps-2 mb-0 font-weight-bold text-gray-800">@Title</div>
+            </div>
+            <div class="col-auto">
+                <MudIcon Icon="@(!IsVisible ? Icons.Material.Filled.ChevronRight : Icons.Material.Filled.ExpandMore)" Size="Size.Large" />
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public EnumSettingCategory? Category { get; set; }
+
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    private string? _colorTheme;
+
+    protected override void OnInitialized()
+    {
+        switch (Category)
+        {
+            case EnumSettingCategory.Allgemein:
+                _colorTheme = "warning";
+                break;
+            case EnumSettingCategory.Zeiterfassung:
+                _colorTheme = "primary";
+                break;
+            case EnumSettingCategory.Taskboard:
+                _colorTheme = "success";
+                break;
+        }
+    }
+
+    private async Task VisibleChanged()
+    {
+        IsVisible = !IsVisible;
+        await IsVisibleChanged.InvokeAsync(IsVisible);
+    }
+}

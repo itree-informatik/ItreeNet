@@ -1,0 +1,68 @@
+﻿.bg-dark {
+    background-color: rgba(55,55,64,1) !important;
+}
+
+main {
+    background-color: gray;
+}
+
+.bg-tilelayout {
+    background-color: gray !important;
+}
+
+/* ZeiterfassunTable */
+.calendar-view-disabled {
+    color: lightgrey !important;
+}
+
+.text-gray-800 {
+    color: white !important;
+}
+
+.text-gray-300 {
+    color: white !important;
+}
+
+.text-color {
+    color: white;
+}
+
+.box {
+    border: 1px solid lightgrey;
+}
+
+label {
+    color: white !important;
+}
+
+/* LayoutIntern */
+.top-row {
+    background-color: #5a5c69 !important;
+    border-bottom: 1px solid #333333 !important;
+    color: lightgrey !important;
+}
+
+.tdHighlight {
+    background-color: orange !important;
+}
+
+.tooltip-table {
+    color: gray;
+    margin: 0
+}
+
+.k-tooltip {
+   background-color: #333333;
+}
+
+.k-callout-e {
+   color: #333333 !important;
+}
+
+.comment {
+    color: lightgrey;
+}
+
+.info {
+    color: white;
+}

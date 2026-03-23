@@ -1,0 +1,105 @@
+@page "/intern/kunden"
+@attribute [Authorize(Policy = "internPolicy")]
+@inject IKundenService KundenService
+@inject ITeamService TeamService
+@inject NavigationManager NavigationManager
+@layout Layout
+
+<h3 class="text-gray-800">Kunden</h3>
+
+@if (_isLoading)
+{
+    <ItreeSpinner />
+}
+else
+{
+    <MudDataGrid T="Kunde"
+                 Items="_kunden"
+                 RowClick="@(args => Open(args.Item))"
+                 SortMode="SortMode.Multiple"
+                 FilterMode="DataGridFilterMode.ColumnFilterRow"
+                 Dense="true" Hover="true" Bordered="true" Striped="true"
+                 Class="mb-2">
+        <ToolBarContent>
+            <MudButton OnClick="@(() => Open(new Kunde()))" StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary">Neuer Kunde</MudButton>
+            <MudSwitch T="bool" Value="@_showInactive" ValueChanged="@OnShowInactiveChanged" Label="Inaktive anzeigen" Class="ms-4" Color="Color.Primary" />
+        </ToolBarContent>
+        <Columns>
+            <PropertyColumn Property="x => x.Kundenname" Title="Kundenname" />
+            <PropertyColumn Property="x => x.Adresse" Title="Adresse" />
+            <TemplateColumn Title="Team">
+                <CellTemplate Context="item">
+                    @if (item.Item.TeamId != null)
+                    {
+                        var team = _teams!.Single(t => t.Id == item.Item.TeamId);
+                        @team.Bezeichnung
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Intern">
+                <CellTemplate Context="item">
+                    @if (item.Item.Intern)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Aktiv">
+                <CellTemplate Context="item">
+                    @if (item.Item.Aktiv)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Class="text-success" />
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Close" Class="text-danger" />
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+    </MudDataGrid>
+}
+
+@code {
+    [CascadingParameter]
+    public Benutzer? Benutzer { get; set; }
+
+    public Guid MitarbeiterId { get; set; }
+
+    private List<Team>? _teams;
+    private List<Kunde>? _kunden;
+    private bool _showInactive;
+
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Benutzer == null || Benutzer.MitarbeiterId == null)
+            throw new Exception("Kein Benutzer gefunden");
+
+        MitarbeiterId = (Guid)Benutzer.MitarbeiterId;
+
+        _kunden = await KundenService.GetAllAsync();
+        _teams = await TeamService.GetAllAsync();
+
+        _isLoading = false;
+    }
+
+    private async Task OnShowInactiveChanged(bool value)
+    {
+        _showInactive = value;
+        _kunden = await KundenService.GetAllAsync(includeInactive: _showInactive);
+    }
+
+    private void Open(Kunde? model)
+    {
+        if(model != null)
+        {
+            NavigationManager.NavigateTo($"/intern/kunden/{model.Id}");
+        }
+    }
+}

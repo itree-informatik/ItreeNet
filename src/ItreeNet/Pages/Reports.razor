@@ -1,0 +1,422 @@
+@page "/intern/reports"
+@attribute [Authorize(Policy = "internPolicy")]
+@using MitarbeiterModel = ItreeNet.Data.Models.Mitarbeiter
+@inject IKundenService KundenService
+@inject IProjektService ProjektService
+@inject IVorgangService VorgangService
+@inject ITeamService TeamService
+@inject IMitarbeiterService MitarbeiterService
+@inject IBuchungsService BuchungsService
+@inject IDokumentService DokumentService
+@inject IJSRuntime JsRuntime
+@layout Layout
+
+<style>
+    label {
+        width: 100px;
+    }
+</style>
+
+<div style="margin-right: 10px;">
+    <h3 class="text-gray-800">Reports</h3>
+</div>
+
+@if (_isLoading)
+{
+    <ItreeSpinner />
+}
+else
+{
+    <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow mt2">
+        <div class="text-gray-800">Auswertung erstellen (ohne Projekt = Arbeitsrapport - mit Projekt = Projektübersicht)</div>
+        <hr class="mt-1" />
+        <div class="d-flex justify-content-between">
+            <div>
+                <label for="dropdownlist_jahr">Jahr</label>
+                <MudSelect @bind-Value="@_selectedJahr" Style="width:200px;">
+                    @if (_jahr != null)
+                    {
+                        @foreach (var item in _jahr)
+                        {
+                            <MudSelectItem Value="item">@item</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </div>
+            <div>
+                <label for="dropdownlist_monatvon">Monat von</label>
+                <MudSelect @bind-Value="@_selectedMonatVon" Style="width:200px;">
+                    @if (_monatVon != null)
+                    {
+                        @foreach (var item in _monatVon)
+                        {
+                            <MudSelectItem Value="item">@item</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </div>
+            <div>
+                <label for="dropdownlist_monatbis">Monat bis</label>
+                <MudSelect @bind-Value="@_selectedMonatBis" Style="width:200px;">
+                    @if (_monatBis != null)
+                    {
+                        @foreach (var item in _monatBis)
+                        {
+                            <MudSelectItem Value="item">@item</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </div>
+            <div>
+                <label for="dropdownlist_kunde">Kunde</label>
+                <MudSelect T="Guid?" Value="@_selectedKundeAusw" ValueChanged="@OnChangeKundenAuswValue" Style="width:300px;">
+                    @if (_kundenAusw != null)
+                    {
+                        @foreach (var item in _kundenAusw.OrderBy(k => k.Kundenname))
+                        {
+                            <MudSelectItem Value="@((Guid?)item.Id)">@item.Kundenname</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </div>
+        </div>
+        <div class="d-flex justify-content-between mt-2">
+            <div>
+                <label for="dropdownlist_alleprojekt">Projekt</label>
+                <MudSelect @bind-Value="@_selectedProjektAusw" Style="width:500px;">
+                    @if (_projekteAusw != null)
+                    {
+                        @foreach (var item in _projekteAusw.OrderBy(p => p.Nummer).ThenBy(p => p.Bezeichnung))
+                        {
+                            <MudSelectItem Value="@((Guid?)item.Id)">@item.Bezeichnung</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </div>
+            <div>
+                <label for="checkbox_projectstatus" style="width: 150px;">Aktive Projekte</label>
+                <MudCheckBox @bind-Value="_onlyActiveProjects" T="bool" />
+            </div>
+            <div class="d-flex justify-content-end" style="width: 105px">
+                @if (_isLoadingDownload)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" OnClick="@Erstellen">
+                        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
+                        @ReportName
+                    </MudButton>
+                }
+                else
+                {
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Settings" OnClick="@Erstellen" Variant="Variant.Filled" Color="Color.Primary">
+                        @ReportName
+                    </MudButton>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="box @theme shadow mt-2">
+        <div>
+            <div class="text-gray-800">Suche</div>
+        </div>
+        <hr class="mt-1" />
+        <div class="d-flex justify-content-between">
+            <div>
+                <label for="dropdownlist_mitarbeiter">Mitarbeiter</label>
+                <MudSelect @bind-Value="@_selectedMitarbeiter" Style="width:300px;">
+                    <MudSelectItem Value="@((Guid?)null)">— Auswählen —</MudSelectItem>
+                    @if (_mitarbeiter != null)
+                    {
+                        @foreach (var item in _mitarbeiter)
+                        {
+                            <MudSelectItem Value="@((Guid?)item.Id)">@item.Fullname</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </div>
+            <div>
+                <label for="dropdownlist_team">Team</label>
+                <MudSelect @bind-Value="@_selectedTeam" Style="width:300px;">
+                    <MudSelectItem Value="@((Guid?)null)">— Auswählen —</MudSelectItem>
+                    @if (_teams != null)
+                    {
+                        @foreach (var item in _teams)
+                        {
+                            <MudSelectItem Value="@((Guid?)item.Id)">@item.Bezeichnung</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </div>
+            <div>
+                <label for="fromDate">Datum ab</label>
+                <MudDatePicker @bind-Date="@_fromDate" Editable="true" Style="width:150px;" />
+            </div>
+            <div>
+                <label for="toDate">Datum bis</label>
+                <MudDatePicker @bind-Date="@_toDate" Editable="true" Style="width:150px;" />
+            </div>
+        </div>
+        <div class="d-flex justify-content-between mt-2">
+            <div>
+                <label for="dropdownlist_kunde">Kunde</label>
+                <MudSelect T="Guid?" Value="@_selectedKunde" ValueChanged="@OnChangeKundeValue" Style="width:300px;">
+                    @if (_kunden != null)
+                    {
+                        @foreach (var item in _kunden)
+                        {
+                            <MudSelectItem Value="@((Guid?)item.Id)">@item.Kundenname</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </div>
+            <div>
+                <label for="dropdownlist_projekt">Projekt</label>
+                <MudSelect T="Guid?" Value="@_selectedProjekt" ValueChanged="@OnChangeProjektValue" Style="width:300px;">
+                    @if (_projekte != null)
+                    {
+                        @foreach (var item in _projekte)
+                        {
+                            <MudSelectItem Value="@((Guid?)item.Id)">@item.Bezeichnung</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </div>
+            <div>
+                <label for="dropdownlist_aktivitaet">Aktivität</label>
+                <MudSelect @bind-Value="@_selectedAktivitaet" Style="width:300px;">
+                    @if (_aktivitaeten != null)
+                    {
+                        @foreach (var item in _aktivitaeten)
+                        {
+                            <MudSelectItem Value="@((Guid?)item.Id)">@item.Bezeichnung</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </div>
+            <div class="d-flex justify-content-end" style="width: 105px">
+                @if (_isLoadingBookings)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" OnClick="@Suchen">
+                        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
+                        Suchen
+                    </MudButton>
+                }
+                else
+                {
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Search" OnClick="@Suchen" Variant="Variant.Filled" Color="Color.Primary">
+                        Suchen
+                    </MudButton>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (_isLoading || _buchungen != null)
+    {
+        <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow mt-2">
+            <div>
+                <div class="text-gray-800">Buchungen</div>
+            </div>
+            <hr class="mt-1" />
+            @if (_isLoadingBookings)
+            {
+                <ItreeSpinner />
+            }
+            else if (!_isLoadingBookings && _buchungen != null)
+            {
+                <MudDataGrid T="Buchung" Items="_buchungen" Dense="true" Hover="true" Bordered="true" Striped="true"
+                             SortMode="SortMode.Multiple" Groupable="true"
+                             FilterMode="DataGridFilterMode.ColumnFilterRow">
+                    <ToolBarContent>
+                        <MudButton OnClick="ExportExcel" StartIcon="@Icons.Material.Filled.TableChart" Variant="Variant.Filled" Color="Color.Primary">Export to Excel</MudButton>
+                    </ToolBarContent>
+                    <Columns>
+                        <PropertyColumn Property="x => x.Datum" Title="Datum" Format="dd.MM.yyyy" Groupable="true" />
+                        <PropertyColumn Property="x => x.KundenName" Title="Kunde" Groupable="true" />
+                        <PropertyColumn Property="x => x.ProjektName" Title="Projekt" Groupable="true" />
+                        <PropertyColumn Property="x => x.Vorgang!.Bezeichnung" Title="Aktivität" Groupable="true" />
+                        <PropertyColumn Property="x => x.Mitarbeiter!.Fullname" Title="Mitarbeiter" Groupable="true" />
+                        <TemplateColumn Title="Zeit">
+                            <CellTemplate Context="item">
+                                @item.Item.Zeit
+                            </CellTemplate>
+                            <FooterTemplate>
+                                @_buchungenZeitSum h
+                            </FooterTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="x => x.Buchungstext" Title="Buchungstext" />
+                    </Columns>
+                </MudDataGrid>
+            }
+        </div>
+    }
+}
+
+@code {
+    [CascadingParameter]
+    public Benutzer? Benutzer { get; set; }
+
+    public Guid MitarbeiterId { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isLoadingBookings;
+    private bool _isLoadingDownload;
+
+    private List<MitarbeiterModel>? _mitarbeiter;
+    private List<Team>? _teams;
+    private List<Kunde>? _kunden;
+    private List<Projekt>? _projekte;
+    private List<Vorgang>? _aktivitaeten;
+    private List<Buchung>? _buchungen;
+    private decimal _buchungenZeitSum;
+
+    private List<Projekt>? _projekteAusw;
+    private Guid? _selectedProjektAusw;
+    private List<Kunde>? _kundenAusw;
+    private Guid? _selectedKundeAusw;
+
+    private List<int>? _jahr;
+    private int _selectedJahr = DateTime.Now.Year;
+    private List<int>? _monatVon;
+    private int _selectedMonatVon = DateTime.Now.Month;
+    private List<int>? _monatBis;
+    private int _selectedMonatBis = DateTime.Now.Month;
+    private bool _onlyActiveProjects = true;
+
+    private Guid? _selectedMitarbeiter;
+    private Guid? _selectedTeam;
+    private Guid? _selectedKunde;
+    private Guid? _selectedProjekt;
+    private Guid? _selectedAktivitaet;
+
+    // MudDatePicker uses DateTime? instead of DateOnly?
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
+    private DateOnly? _from => _fromDate.HasValue ? DateOnly.FromDateTime(_fromDate.Value) : null;
+    private DateOnly? _to => _toDate.HasValue ? DateOnly.FromDateTime(_toDate.Value) : null;
+
+    private string ReportName => _selectedProjektAusw == null ? "Arbeitsrapport erstellen" : "Projektübersicht erstellen";
+    private string theme = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Benutzer == null || Benutzer.MitarbeiterId == null)
+            throw new Exception("Kein Benutzer gefunden");
+
+
+        theme = $"bg-{Benutzer!.ThemeMode.ToString()!.ToLower()}";
+        MitarbeiterId = (Guid)Benutzer.MitarbeiterId;
+
+        _mitarbeiter = await MitarbeiterService.GetAllActiveAsync();
+        _kunden = await KundenService.GetAllActiveAsync();
+        _teams = await TeamService.GetAllAsync();
+        _isLoading = false;
+
+        _jahr = new List<int>();
+        for (var jahr = DateTime.Today.Year; jahr > 2007; jahr--)
+        {
+            _jahr.Add(jahr);
+        }
+        _monatVon = new List<int>();
+        _monatBis = new List<int>();
+        for (var monat = 1; monat < 13; monat++)
+        {
+            _monatVon.Add(monat);
+            _monatBis.Add(monat);
+        }
+        _kundenAusw = await KundenService.GetAllActiveAsync();
+        _projekteAusw = new List<Projekt>();
+    }
+
+    private async Task Suchen()
+    {
+        _isLoadingBookings = true;
+        _buchungen = await BuchungsService.SucheBuchungAsync(_selectedMitarbeiter, _selectedTeam, _selectedKunde, _selectedProjekt, _selectedAktivitaet, _from, _to);
+        _buchungenZeitSum = _buchungen?.Sum(b => b.Zeit) ?? 0;
+        _isLoadingBookings = false;
+    }
+
+    private async Task Erstellen()
+    {
+        _isLoadingDownload = true;
+        await InvokeAsync(StateHasChanged);
+        string filePath;
+        if (_selectedProjektAusw == null)
+        {
+            // Arbeitsrapport
+            filePath = await DokumentService.CreateArbeitsrapporte(_selectedJahr, _selectedMonatVon, _selectedMonatBis);
+        }
+        else
+        {
+            if (!_selectedProjektAusw.HasValue)
+            {
+                return;
+            }
+            // Projektübersicht
+            filePath = await DokumentService.CreateProjektUebersicht(_selectedJahr, _selectedMonatVon, _selectedMonatBis, _selectedProjektAusw.Value);
+        }
+
+        if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+        {
+            await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+            using var streamRef = new DotNetStreamReference(stream: stream);
+            await JsRuntime.InvokeVoidAsync("DownloadFileFromStream", Path.GetFileName(filePath), streamRef);
+        }
+        _isLoadingDownload = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ExportExcel()
+    {
+        // Excel export trigger - existing export logic can be wired here if needed
+        await Task.CompletedTask;
+    }
+
+    private async Task OnChangeKundeValue(Guid? value)
+    {
+        _selectedKunde = value;
+        await OnChangeKunde();
+    }
+
+    private async Task OnChangeKunde()
+    {
+        _projekte = await ProjektService.ProjectsByCustomerIdAsync(_selectedKunde);
+    }
+
+    private async Task OnChangeProjektValue(Guid? value)
+    {
+        _selectedProjekt = value;
+        await OnChangeProjekt();
+    }
+
+    private async Task OnChangeProjekt()
+    {
+        _aktivitaeten = await VorgangService.GetAllProjecIdAsync(_selectedProjekt);
+    }
+
+    private async Task OnChangeKundenAuswValue(Guid? value)
+    {
+        _selectedKundeAusw = value;
+        await OnChangeKundenAusw();
+    }
+
+    private async Task OnChangeKundenAusw()
+    {
+        if (_selectedKundeAusw == null)
+        {
+            _selectedProjektAusw = null;
+            _projekteAusw = new List<Projekt>();
+        }
+        else
+        {
+            var status = EnumStatus.Aktiv;
+
+            if (!_onlyActiveProjects)
+            {
+                status = EnumStatus.Inaktiv;
+            }
+
+            _projekteAusw = await ProjektService.ProjectsByCustomerIdAsync(_selectedKundeAusw, status);
+        }
+    }
+}
