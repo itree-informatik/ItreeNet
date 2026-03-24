@@ -355,9 +355,9 @@ else
     private EditContext? _editContextProjekt;
     private EditContext? _editContextAktivitaet;
 
-    private bool HasChanges => !BaseExtension.IsEqual(_selectedKunde, _selectedKundeOriginal);
-    private bool HasChangesProjekt => !BaseExtension.IsEqual(_selectedProjekt, _selectedProjektOriginal);
-    private bool HasChangesAktivitaeten => !BaseExtension.IsEqual(_selectedAktivitaet, _selectedAktivitaetOriginal);
+    private bool HasChanges => !_selectedKunde.IsEqual(_selectedKundeOriginal);
+    private bool HasChangesProjekt => !_selectedProjekt.IsEqual(_selectedProjektOriginal);
+    private bool HasChangesAktivitaeten => !_selectedAktivitaet.IsEqual(_selectedAktivitaetOriginal);
 
     private Kunde? _selectedKunde;
     private Kunde? _selectedKundeOriginal;

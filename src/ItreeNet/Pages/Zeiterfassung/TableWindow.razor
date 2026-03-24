@@ -133,16 +133,16 @@
 
                     @if (_buttonIsLoading)
                     {
-                        <ButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
+                        <ItreeButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
                             <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
-                        </ButtonGroup>
+                        </ItreeButtonGroup>
                     }
                     else
                     {
-                        <ButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
+                        <ItreeButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
                             <MudButton ButtonType="ButtonType.Submit" StartIcon="@Icons.Material.Filled.Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!HasChanges())">Speichern</MudButton>
                             <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Cancel" Variant="Variant.Filled" Color="Color.Primary" OnClick="@CloseWindow">Abbrechen</MudButton>
-                        </ButtonGroup>
+                        </ItreeButtonGroup>
                     }
                 </EditForm>
             }
@@ -338,7 +338,7 @@
 
     private bool HasChanges()
     {
-        var hasChanges = !BaseExtension.IsEqual(OriginalItem, Buchung);
+        var hasChanges = !OriginalItem.IsEqual(Buchung);
         return hasChanges;
     }
 

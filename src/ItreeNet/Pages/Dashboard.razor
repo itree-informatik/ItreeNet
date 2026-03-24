@@ -596,7 +596,7 @@
                     <span>Liegen Jahr und Monat vor dem Vormonat werden alle Monatssaldo ab diesem Monat neu berechnet.</span>
                     <span>Abschluss kann höchstens bis zum Vormonat gemacht werden.</span>
                     <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
-                        <ButtonGroup Id="modal_confirm_buttons" Position="EnumButtonGroupPosition.Rechts">
+                        <ItreeButtonGroup Id="modal_confirm_buttons" Position="EnumButtonGroupPosition.Rechts">
                             @if (_loadingAbschluss)
                             {
                                 <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" OnClick="@CreateAbschluss">
@@ -609,7 +609,7 @@
                                            Class="text-success" Disabled="!ButtonEnabled" />
                             }
                             <MudButton OnClick="@(() => _showAbschluss = false)" StartIcon="@Icons.Material.Filled.Close" Variant="Variant.Filled" Color="Color.Primary" Class="text-danger" />
-                        </ButtonGroup>
+                        </ItreeButtonGroup>
                     </MudStack>
                 </div>
             </MudPaper>

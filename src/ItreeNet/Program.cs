@@ -1,4 +1,5 @@
-﻿using ItreeNet.Data.Extensions;
+﻿using ItreeMud.Services;
+using ItreeNet.Data.Extensions;
 using MudBlazor.Services;
 using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
@@ -25,6 +26,8 @@ builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddMudServices();
+builder.Services.AddSingleton<ITranslationProvider, ItreeNetTranslationProvider>();
+builder.Services.AddScoped<LanguageService>();
 builder.Services.AddAuthorization(config =>
 {
     config.AddPolicy("internPolicy", policy => policy.RequireClaim("IsIntern", true.ToString()));

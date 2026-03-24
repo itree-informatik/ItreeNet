@@ -1,73 +1,10 @@
-﻿using System.Text.Json;
-using ItreeNet.Data.Enums;
 using ItreeNet.Data.Models;
-using ItreeNet.Shared.Form;
+using ItreeMud.Models;
 
 namespace ItreeNet.Data.Extensions
 {
     public static class BaseExtension
     {
-        /// <summary>
-        ///     Copy a model to an other model by serialization and deserialization
-        /// </summary>
-        /// <typeparam name="T">Target model</typeparam>
-        /// <param name="source">Source model</param>
-        /// <returns></returns>
-        public static T? Clone<T>(this T source)
-        {
-            var serialized = JsonSerializer.Serialize(source);
-            return JsonSerializer.Deserialize<T>(serialized);
-        }
-
-        /// <summary>
-        ///     Checks if two objets have the same properties and values
-        /// </summary>
-        /// <param name="a">Model to compare</param>
-        /// <param name="b">Model to compare</param>
-        /// <param name="ignoreProperties">Optional string array to ignore properties</param>
-        /// <returns></returns>
-        public static bool IsEqual(object? a, object? b, string? ignoreProperties = null)
-        {
-            if (a == null || b == null)
-                return false;
-
-            var aType = a.GetType();
-            var ignorePropteriesList = new List<string>();
-            if (ignoreProperties != null)
-            {
-                ignorePropteriesList = ignoreProperties.Split(',').ToList();
-            }
-
-            ignorePropteriesList.Add("ICollection`1");
-
-            var ignoreList = aType.GetProperties().Where(p => p.Name.ToLower().Contains("translatedtext"));
-            foreach (var ignore in ignoreList)
-            {
-                ignorePropteriesList.Add(ignore.Name);
-            }
-
-            foreach (var aProperty in aType.GetProperties())
-            {
-                if (aProperty.PropertyType.FullName != null && aProperty.PropertyType.IsClass && !aProperty.PropertyType.FullName.StartsWith("System"))
-                    continue;
-
-                if (!ignorePropteriesList.Contains(aProperty.PropertyType.Name) &&
-                    !ignorePropteriesList.Contains(aProperty.Name))
-                {
-                    var aValue = aProperty.GetValue(a, null);
-                    var bValue = aProperty.GetValue(b, null);
-
-                    if (!Equals(aValue, bValue))
-                    {
-                        //Console.WriteLine($"Propertyname: {aProperty.Name}, a: {aValue} b:{bValue}");
-                        return false;
-                    }
-                }
-            }
-
-            return true;
-        }
-
         public static string FirstCharSubstring(string input)
         {
             if (string.IsNullOrEmpty(input))
@@ -98,7 +35,7 @@ namespace ItreeNet.Data.Extensions
             var dropdown = new ItreeFormDropdown
             {
                 Data = new List<ItreeFormDropdownItem>(),
-                Label = dropdownLabel,
+                TranslationKey = dropdownLabel,
                 Field = field,
             };
 
