@@ -93,7 +93,8 @@ jobs:
             --name "itree-informatik" \
             --username "itree-informatik" \
             --password "${{ secrets.GITHUB_TOKEN }}" \
-            --store-password-in-clear-text
+            --store-password-in-clear-text \
+            --configfile src/nuget.config
 
       - name: Restore NuGet packages
         run: dotnet restore src/ItreeNet.sln --configfile src/nuget.config
