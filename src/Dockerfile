@@ -18,7 +18,7 @@ RUN dotnet nuget add source "https://nuget.pkg.github.com/itree-informatik/index
       --username "itree-informatik" \
       --password "$NUGET_AUTH_TOKEN" \
       --store-password-in-clear-text && \
-    dotnet restore ItreeNet.sln --configfile nuget.config
+    dotnet restore ItreeNet.sln
 
 # copy everything
 COPY . .
