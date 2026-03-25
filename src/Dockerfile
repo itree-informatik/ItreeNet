@@ -2,7 +2,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0-noble AS build
 WORKDIR /src
 
-ARG TELERIK_LICENSE
 ARG proj="**/ItreeNet.csproj"
 ARG ASSEMBLY_VERSION
 ARG ASSEMBLY_INFO_VERSION
@@ -24,7 +23,7 @@ RUN dotnet nuget add source "https://nuget.pkg.github.com/itree-informatik/index
 COPY . .
 
 # publish
-RUN dotnet publish $proj -c Release -o /app/publish -p:Version=$ASSEMBLY_VERSION -p:InformationalVersion=$ASSEMBLY_INFO_VERSION -p:TelerikLicense=$TELERIK_LICENSE
+RUN dotnet publish $proj -c Release -o /app/publish -p:Version=$ASSEMBLY_VERSION -p:InformationalVersion=$ASSEMBLY_INFO_VERSION
 
 ## RUN
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS base
