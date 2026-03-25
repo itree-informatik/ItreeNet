@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  packages: read
 
 env:
   MAJOR: 1
@@ -86,6 +87,14 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Add GitHub Packages source
+        run: |
+          dotnet nuget add source "https://nuget.pkg.github.com/itree-informatik/index.json" \
+            --name "itree-informatik" \
+            --username "itree-informatik" \
+            --password "${{ secrets.GITHUB_TOKEN }}" \
+            --store-password-in-clear-text
+
       - name: Restore NuGet packages
         run: dotnet restore src/ItreeNet.sln --configfile src/nuget.config
 
@@ -126,6 +135,7 @@ jobs:
             --build-arg "ASSEMBLY_VERSION=${{ env.ASSEMBLY_VERSION }}" \
             --build-arg "ASSEMBLY_INFO_VERSION=${{ env.VERSION }}" \
             --build-arg "AUTOMAPPER_LICENSEKEY=${{ secrets.AUTOMAPPER_LICENSEKEY }}" \
+            --build-arg "NUGET_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}" \
             -t "${{ env.ACR_REGISTRY }}/${{ env.DOCKER_REPO }}:${{ env.VERSION }}" \
             -t "${{ env.ACR_REGISTRY }}/${{ env.DOCKER_REPO }}:latest" \
             src/

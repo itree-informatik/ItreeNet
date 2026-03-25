@@ -6,13 +6,19 @@ ARG TELERIK_LICENSE
 ARG proj="**/ItreeNet.csproj"
 ARG ASSEMBLY_VERSION
 ARG ASSEMBLY_INFO_VERSION
+ARG NUGET_AUTH_TOKEN
 
 # copy csproj and restore as distinct layers
 COPY /ItreeNet ./ItreeNet
 COPY ItreeNet.sln .
 COPY nuget.config .
 
-RUN dotnet restore ItreeNet.sln --configfile nuget.config
+RUN dotnet nuget add source "https://nuget.pkg.github.com/itree-informatik/index.json" \
+      --name "itree-informatik" \
+      --username "itree-informatik" \
+      --password "$NUGET_AUTH_TOKEN" \
+      --store-password-in-clear-text && \
+    dotnet restore ItreeNet.sln --configfile nuget.config
 
 # copy everything
 COPY . .
