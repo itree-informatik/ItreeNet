@@ -53,17 +53,22 @@ else
                     </div>
                 </td>
                 <td colspan="5">
-                    <div class="d-flex flex-row" style="gap: 50px;">
+                    <div class="d-flex flex-row align-items-center">
                         <div style="width: 200px;">
                             Wochenstunden gesamt:
                         </div>
-                        <div class="d-flex flex-row" style="gap: 10px;">
-                            <span style="width: 40px; text-align: end; color: green;">@TimeBookingsTotalHours</span>
+                        <div class="d-flex flex-row align-items-center" style="gap: 5px; width: 65px; justify-content: flex-end;">
+                            <span style="color: green;">@TimeBookingsTotalHours?.ToString("N2")</span>
                             <span>h</span>
                         </div>
-                        <div class="d-flex flex-row" style="gap: 10px;">
-                            <span class="@(AnwesenheitTotalHours >= _pensum ? "hoursMet" : "hoursNotMet")" style="width: 40px; text-align: end;">@AnwesenheitTotalHours</span>
-                            <span>h / @_pensum h</span>
+                        <div class="mx-6" style="width: 20px;"></div>
+                        <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Color="Color.Primary" />
+                            <div class="d-flex flex-row" style="width: 60px; justify-content: flex-end;">
+                            <span class="@(AnwesenheitTotalHours >= _pensum ? "hoursMet" : "hoursNotMet")">@AnwesenheitTotalHours.ToString("N2") h</span>
+                        </div>
+                        <div>
+                            <span class="pl-3"> / </span>
+                            <span class="px-3">@_pensum h</span>
                         </div>
                     </div>
                 </td>
@@ -79,18 +84,24 @@ else
                         </div>
                     </td>
                     <td colspan="5">
-                        <div class="d-flex flex-row" style="gap: 50px;">
+                        <div class="d-flex flex-row align-items-center">
                             <div style="width: 200px;">
                                 @daily.Weekday
                                 <strong>(@daily.Date.ToString("dd.MM.yyyy"))</strong>
                             </div>
-                            <div class="d-flex flex-row" style="gap: 10px;">
-                                <span style="width: 40px; color: green; text-align: end">@daily.TotalHours</span>
+                            <div class="d-flex flex-row align-items-center" style="gap: 5px; width: 65px; justify-content: flex-end;">
+                                <span style="color: green;">@daily.TotalHours?.ToString("N2")</span>
                                 <span>h</span>
                             </div>
-                            <div class="d-flex flex-row pointer" style="gap: 5px; padding-left: 8px;" title="Anwesenheit bearbeiten" @onclick="@(() => OpenAnwesenheitWindow(daily.Date))">
-                                <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Color="Color.Primary" />
-                                <span style="color: dodgerblue;">@GetAnwesenheitStunden(daily.Date) h</span>
+                            <div style="width: 20px;" class="mx-6">
+                                @if (daily.TotalHours > 0)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Color="Color.Primary" Class="pointer" title="Buchungszeit in Anwesenheit übertragen" @onclick="@(() => TransferDayToAnwesenheit(daily))" />
+                                }
+                            </div>
+                            <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Color="Color.Primary" />
+                            <div class="d-flex flex-row pointer" style="width: 60px; justify-content: flex-end;" title="Anwesenheit bearbeiten" @onclick="@(() => OpenAnwesenheitWindow(daily.Date))">
+                                <span style="color: dodgerblue;">@GetAnwesenheitStunden(daily.Date).ToString("N2") h</span>
                             </div>
                             @{
                                 var details = daily.Details;
@@ -147,7 +158,7 @@ else
 
                                             <td class="@tdclass">@buchung.Vorgang!.Bezeichnung</td>
 
-                                            <td class="@tdclass">@buchung.Zeit</td>
+                                            <td class="@tdclass">@buchung.Zeit?.ToString("N2")</td>
 
                                             <td class="@tdclass">@buchung.Buchungstext</td>
                                             <td class="@tdclass">
@@ -399,6 +410,7 @@ else
         _timeBookingList = await BuchungsService.GetBookingsByEmployeeAsync(_mitarbeiterId, _datePickerValue, _showWeek);
 
         RestoreUncollapseddDates();
+        _totalCollapsed = _timeBookingList?.All(t => t.IsCollapsed) ?? true;
         await LoadAnwesenheit();
 
         _isLoading = false;
@@ -430,6 +442,31 @@ else
 
     private async Task OnAnwesenheitChanged()
     {
+        await LoadAnwesenheit();
+        StateHasChanged();
+    }
+
+    private async Task TransferDayToAnwesenheit(Buchungstag day)
+    {
+        var existing = await AnwesenheitService.GetByMitarbeiterAsync(_mitarbeiterId, day.Date, day.Date);
+        var anwesenheit = existing.FirstOrDefault();
+
+        if (anwesenheit == null)
+        {
+            anwesenheit = new Anwesenheit
+            {
+                MitarbeiterId = _mitarbeiterId,
+                Datum = day.Date,
+                Typ = EnumAnwesenheitTyp.Anwesenheit,
+                Zeit = day.TotalHours
+            };
+        }
+        else
+        {
+            anwesenheit.Zeit = day.TotalHours;
+        }
+
+        await AnwesenheitService.SaveAsync(anwesenheit);
         await LoadAnwesenheit();
         StateHasChanged();
     }
