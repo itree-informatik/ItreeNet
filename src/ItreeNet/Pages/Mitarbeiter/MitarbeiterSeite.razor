@@ -252,7 +252,6 @@ else
                      OnSave="@OnSaveFerienArbeitspensum"
                      OnClose="@OnCloseFerienArbeitspensum"
                      AutoGenerate="true"
-                     Writeable="true"
                      IgnorePropertyList="MitarbeiterId,Mitarbeiter"
                      IgnorePropertyCheckingList="MitarbeiterId,Mitarbeiter"/>
 
@@ -262,7 +261,6 @@ else
                      OnSave="@OnSaveMitarbeiterSaldoKorrektur"
                      OnClose="@OnCloseMitarbeiterSaldoKorrektur"
                      AutoGenerate="true"
-                     Writeable="true"
                      IgnorePropertyList="MitarbeiterId,Mitarbeiter,CreatedOn,CreatedBy"
                      IgnorePropertyCheckingList="MitarbeiterId,Mitarbeiter,CreatedOn,CreatedBy" />
 
@@ -278,8 +276,8 @@ else
 
     private EditContext? _editContextMitarbeiter;
 
-    private bool HasChangesMitarbeiterSaldoKorrektur => !BaseExtension.IsEqual(_selectedMitarbeiterSaldoKorrektur, _selectedMitarbeiterSaldoOriginalKorrektur);
-    private bool HasChangesFerienArbeitspensum => !BaseExtension.IsEqual(_selectedFerienArbeitspensum, _selectedFerienArbeitspensumOriginal);
+    private bool HasChangesMitarbeiterSaldoKorrektur => !_selectedMitarbeiterSaldoKorrektur.IsEqual(_selectedMitarbeiterSaldoOriginalKorrektur);
+    private bool HasChangesFerienArbeitspensum => !_selectedFerienArbeitspensum.IsEqual(_selectedFerienArbeitspensumOriginal);
     private bool _showMitarbeiterSaldoKorrektur;
     private bool _showFerienArbeitsPensum;
 
@@ -372,7 +370,7 @@ else
         if (_selectMitarbeiter == null || _selectMitarbeiterOriginal == null)
             return false;
 
-        var result = !BaseExtension.IsEqual(_selectMitarbeiter, _selectMitarbeiterOriginal, "TeamIds");
+        var result = !_selectMitarbeiter.IsEqual(_selectMitarbeiterOriginal, "TeamIds");
 
         if (result)
             return result;

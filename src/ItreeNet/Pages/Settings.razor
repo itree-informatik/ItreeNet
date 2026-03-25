@@ -139,9 +139,7 @@ else
                  Validator="@(new ArbeitszeitValidator())"
                  OnSave="@OnSave"
                  OnClose="@OnClose"
-                 AutoGenerate="true"
-                 Writeable="true"
-                 Category="EnumSettingCategory.Zeiterfassung" />
+                 AutoGenerate="true" />
 
 @*ArbeitszeitReduktion Window*@
 <ItreeFormWindow WindowVisible="@_showArbeitszeitreduktionWindow"
@@ -149,18 +147,14 @@ else
                  Validator="@(new ArbeitszeitReduktionValidator())"
                  OnSave="@OnSave"
                  OnClose="@OnClose"
-                 AutoGenerate="true"
-                 Writeable="true"
-                 Category="EnumSettingCategory.Zeiterfassung" />
+                 AutoGenerate="true" />
 
 <ItreeFormWindow WindowVisible="@_showTeamWindow"
                  Model="@_selectedTeam"
                  Validator="@(new TeamValidator())"
                  OnSave="@OnSave"
                  OnClose="@OnClose"
-                 AutoGenerate="true"
-                 Writeable="true"
-                 Category="EnumSettingCategory.Allgemein" />
+                 AutoGenerate="true" />
 
 
 @*Confirm delete*@
@@ -241,18 +235,11 @@ else
         }
     }
 
-    private void OnClose(bool hasChanges)
+    private void OnClose()
     {
-        if (!hasChanges)
-        {
-            _showArbeitszeitenWindow = false;
-            _showArbeitszeitreduktionWindow = false;
-            _showTeamWindow = false;
-        }
-        else
-        {
-            _isVisibleCancelConfirm = true;
-        }
+        _showArbeitszeitenWindow = false;
+        _showArbeitszeitreduktionWindow = false;
+        _showTeamWindow = false;
     }
 
     private async Task DeleteConfirm(bool shouldDelete)

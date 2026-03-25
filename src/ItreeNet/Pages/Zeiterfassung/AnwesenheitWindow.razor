@@ -34,19 +34,26 @@
                     <ValidationMessage For="(() => _model.ZeitBis)" />
                 </FormField>
 
+                @if (_model.ZeitVon != null && _model.ZeitBis != null)
+                {
+                    <FormField Label="Pause (h)">
+                        <MudNumericField Value="@_pause" ValueChanged="@((decimal val) => OnPauseChanged(val))" Format="N2" Min="0" Step="0.25M" />
+                    </FormField>
+                }
+
                 <FormField Label="Notiz">
                     <MudTextField @bind-Value="@_model.Notiz" Lines="2" />
                     <ValidationMessage For="(() => _model.Notiz)" />
                 </FormField>
 
-                <ButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
+                <ItreeButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
                     @if (_model.Id != Guid.Empty)
                     {
                         <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Delete" Variant="Variant.Filled" Color="Color.Primary" OnClick="@Delete">Löschen</MudButton>
                     }
                     <MudButton ButtonType="ButtonType.Submit" StartIcon="@Icons.Material.Filled.Save" Variant="Variant.Filled" Color="Color.Primary">Speichern</MudButton>
                     <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Cancel" Variant="Variant.Filled" Color="Color.Primary" OnClick="@Close">Abbrechen</MudButton>
-                </ButtonGroup>
+                </ItreeButtonGroup>
             </EditForm>
         </MudPaper>
     </MudOverlay>
@@ -62,17 +69,41 @@
     private bool _visible;
     private DateOnly _loadedDatum;
     private Guid _loadedMitarbeiterId;
+    private decimal _pause = 0;
 
     private TimeSpan? ZeitVonAsTimeSpan
     {
         get => _model.ZeitVon?.TimeOfDay;
-        set => _model.ZeitVon = value.HasValue ? Datum.ToDateTime(new TimeOnly(0)).Add(value.Value) : null;
+        set
+        {
+            _model.ZeitVon = value.HasValue ? DateTime.SpecifyKind(Datum.ToDateTime(new TimeOnly(0)).Add(value.Value), DateTimeKind.Utc) : null;
+            UpdateZeitFromRange();
+        }
     }
 
     private TimeSpan? ZeitBisAsTimeSpan
     {
         get => _model.ZeitBis?.TimeOfDay;
-        set => _model.ZeitBis = value.HasValue ? Datum.ToDateTime(new TimeOnly(0)).Add(value.Value) : null;
+        set
+        {
+            _model.ZeitBis = value.HasValue ? DateTime.SpecifyKind(Datum.ToDateTime(new TimeOnly(0)).Add(value.Value), DateTimeKind.Utc) : null;
+            UpdateZeitFromRange();
+        }
+    }
+
+    private void UpdateZeitFromRange()
+    {
+        if (_model.ZeitVon != null && _model.ZeitBis != null)
+        {
+            var hours = (_model.ZeitBis.Value - _model.ZeitVon.Value).TotalHours - (double)_pause;
+            _model.Zeit = Convert.ToDecimal(hours.ToString("N2"));
+        }
+    }
+
+    private void OnPauseChanged(decimal value)
+    {
+        _pause = value;
+        UpdateZeitFromRange();
     }
 
     protected override async Task OnParametersSetAsync()
@@ -82,11 +113,17 @@
 
         _loadedDatum = Datum;
         _loadedMitarbeiterId = MitarbeiterId;
+        _pause = 0;
 
         var records = await AnwesenheitService.GetByMitarbeiterAsync(MitarbeiterId, Datum, Datum);
         if (records.Count > 0)
         {
             _model = records.First();
+            if (_model.ZeitVon != null && _model.ZeitBis != null && _model.Zeit != null)
+            {
+                var grossHours = (_model.ZeitBis.Value - _model.ZeitVon.Value).TotalHours;
+                _pause = Convert.ToDecimal((grossHours - (double)_model.Zeit).ToString("N2"));
+            }
         }
         else
         {

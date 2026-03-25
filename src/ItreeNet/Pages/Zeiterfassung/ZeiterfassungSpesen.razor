@@ -97,8 +97,7 @@ else
                      OnSave="@Save"
                      IgnorePropertyList="MitarbeiterId,EingereichtAm"
                      OnClose="@OnClose"
-                     AutoGenerate="true"
-                     Writeable="true"/>
+                     AutoGenerate="true" />
 }
 
 @*Confirm cancel when changes are not saved*@
@@ -211,16 +210,9 @@ else
         await GetYears();
     }
 
-    private void OnClose(bool hasChanges)
+    private void OnClose()
     {
-        if (!hasChanges)
-        {
-            _showSpesenWindow = false;
-        }
-        else
-        {
-            _isVisibleCancelConfirm = true;
-        }
+        _showSpesenWindow = false;
     }
 
     protected async Task DeleteConfirm(bool shouldDelete)
