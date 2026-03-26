@@ -9,5 +9,7 @@
         public int Total { get; set; }
         public int Korrekt { get; set; }
         public int Fehlerhaft { get; set; }
+        public string? LastCommit { get; set; }
+        public string? Meldung { get; set; }
     }
 }

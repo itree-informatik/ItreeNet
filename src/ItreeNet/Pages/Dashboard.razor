@@ -194,8 +194,8 @@
                         <div class="text-gray-600">Keine provisorischen Buchungen vorhanden.</div>
                     }
                     else
-                    {
-                        <table class="table table-sm table-borderless @_tableTheme table-hover table-striped">
+                        {
+                        <table class="table table-sm table-borderless @_tableTheme table-hover table-striped align-middle">
                             <thead>
                                 <tr class="text-gray-800">
                                     <td>Datum</td>
@@ -295,7 +295,7 @@
                 @if (_dashboardProjekts != null)
                 {
                     <div style="height: 100%; overflow: auto;">
-                        <table class="table table-sm table-borderless @_tableTheme table-hover table-striped">
+                        <table class="table table-sm table-borderless @_tableTheme table-hover table-striped align-middle">
                             <thead>
                                 <tr class="text-gray-800">
                                     <td>Kunde</td>
@@ -362,7 +362,7 @@
                 </div>
                 @if (_dashboardPipelinRuns != null)
                 {
-                    <table class="table table-sm table-borderless @_tableTheme table-hover table-striped">
+                    <table class="table table-sm table-borderless @_tableTheme table-hover table-striped align-middle">
                         <thead>
                             <tr class="text-gray-800">
                                 <td>Pipeline</td>
@@ -492,18 +492,18 @@
                 @if (_dashboardFrontendtests != null)
                 {
                     <div style="height: 100%; overflow: auto;">
-                        <table class="table table-sm table-borderless @_tableTheme table-hover table-striped">
+                        <table class="table table-sm table-borderless @_tableTheme table-hover table-striped align-middle">
                             <thead>
-                                <tr class="text-gray-800">
-                                    <td>Id</td>
-                                    <td>Datum</td>
-                                    <td>Start</td>
-                                    <td>Ende</td>
-                                    <td>Ergebnis</td>
-                                    <td>Total</td>
-                                    <td>Korrekt</td>
-                                    <td>Fehlerhaft</td>
-                                </tr>
+                            <tr class="text-gray-800">
+                                <td>Datum</td>
+                                <td>Start</td>
+                                <td>Ende</td>
+                                <td>Last Commit</td>
+                                <td>Ergebnis</td>
+                                <td>Total</td>
+                                <td>Korrekt</td>
+                                <td>Fehlerhaft</td>
+                            </tr>
                             </thead>
                             <tbody>
                                 @foreach (var test in _dashboardFrontendtests!)
@@ -517,12 +517,23 @@
                                     {
                                         resultTextClass = "text-success";
                                     }
-                                    <tr class="text-gray-800 pointer" @onclick="@(() => ShowDetail(test))">
-                                        <td>@test.Id</td>
+                                <tr class="text-gray-800 pointer" @onclick="@(() => ShowDetail(test))">
                                         <td>@test.StartDatum.ToShortDateString()</td>
                                         <td>@test.StartDatum.ToShortTimeString()</td>
                                         <td>@test.EndDatum.ToShortTimeString()</td>
-                                        <td class="@resultTextClass"><strong>@test.Ergebnis</strong></td>
+                                        <td>@test.LastCommit</td>
+                                        <td class="@resultTextClass">
+                                            <div class="d-flex align-items-center">
+                                                <strong>@test.Ergebnis</strong>
+                                                @if (!string.IsNullOrEmpty(test.Meldung))
+                                                {
+                                                    <button type="button" class="btn btn-link p-0 ms-2" title="Meldung anzeigen"
+                                                            @onclick="@(() => ShowInModal(test.Meldung))" @onclick:stopPropagation="true">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Info" />
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
                                         <td><strong>@test.Total</strong></td>
                                         <td><strong>@test.Korrekt</strong></td>
                                         <td><strong>@test.Fehlerhaft</strong></td>

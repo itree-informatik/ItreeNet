@@ -30,6 +30,8 @@ public partial class TFrontendtest
     [StringLength(255)]
     public string? LastCommit { get; set; }
 
+    public string? Meldung { get; set; }
+
     [InverseProperty("Parent")]
     public virtual ICollection<TFrontendtestDetail> TFrontendtestDetail { get; set; } = new List<TFrontendtestDetail>();
 }
