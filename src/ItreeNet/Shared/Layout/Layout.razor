@@ -21,7 +21,7 @@
         <CascadingValue Value="@Benutzer">
             @if (_isLoading)
             {
-                <ItreeSpinner/>
+                <ItreeSpinner />
             }
             else
             {
@@ -31,9 +31,10 @@
                     </div>
 
                     <main>
-                        <div id="top-row" class="top-row px-4" style="z-index: 100;">
-                            @if (Benutzer != null)
-                            {
+                        @if (Benutzer != null)
+                        {
+                            <div id="top-row" class="top-row px-4" style="z-index: 100;">
+
                                 <MudMenu @bind-Open="_profilMenuOpen" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
                                     <ActivatorContent Context="activator">
                                         <div class="pointer" id="menu_profil" @onclick="@(() => _profilMenuOpen = !_profilMenuOpen)">
@@ -45,43 +46,52 @@
                                         <MudMenuItem OnClick="@ChangeTheme">
                                             @if (_isDarkMode)
                                             {
-                                                <span class="bi-sun me-2"></span><span>Light Mode</span>
+                                                <span class="bi-sun me-2"></span>
+                                    
+                                                <span>Light Mode</span>
                                             }
                                             else
                                             {
-                                                <span class="bi-moon me-2"></span><span>Dark Mode</span>
+                                                <span class="bi-moon me-2"></span>
+                                    
+                                                <span>Dark Mode</span>
                                             }
                                         </MudMenuItem>
                                         @* ReSharper disable once Html.PathError *@
                                         <MudMenuItem Href="login/logout">Log out</MudMenuItem>
                                     </ChildContent>
                                 </MudMenu>
-                            }
-                        </div>
 
-                        <article class="content px-4">
-                            <div class="main">
-                                <div class="content px-4">
-                                    <MyErrorBoundary @ref="_errorBoundary">
-                                        <ChildContent>
-                                            @Body
-                                        </ChildContent>
-                                        <ErrorContent Context="_">
-                                            <div>
-                                                <img class="mx-auto d-block" src="assets/img/something-went-wrong.webp" />
-                                            </div>
-                                            <h3 class="text-gray-800" style="text-align: center">Oops something went wrong!</h3>
-                                            @if (_errorBoundary.CurrentException != null && !string.IsNullOrEmpty(_errorBoundary.CurrentException.Message))
-                                            {
-                                                <div class="shadow alert alert-danger mb-2" style="font-family: Garamon">
-                                                    @_errorBoundary.CurrentException.Message
-                                                </div>
-                                            }
-                                        </ErrorContent>
-                                    </MyErrorBoundary>
-                                </div>
                             </div>
-                        </article>
+
+                            <article class="content px-4">
+                                <div class="main">
+                                    <div class="content px-4">
+                                        <MyErrorBoundary @ref="_errorBoundary">
+                                            <ChildContent>
+                                                @Body
+                                            </ChildContent>
+                                            <ErrorContent Context="_">
+                                                <div>
+                                                    <img class="mx-auto d-block" src="assets/img/something-went-wrong.webp" />
+                                                </div>
+                                                <h3 class="text-gray-800" style="text-align: center">Oops something went wrong!</h3>
+                                                @if (_errorBoundary.CurrentException != null && !string.IsNullOrEmpty(_errorBoundary.CurrentException.Message))
+                                                {
+                                                    <div class="shadow alert alert-danger mb-2" style="font-family: Garamon">
+                                                        @_errorBoundary.CurrentException.Message
+                                                    </div>
+                                                }
+                                            </ErrorContent>
+                                        </MyErrorBoundary>
+                                    </div>
+                                </div>
+                            </article>
+                        }
+                        else
+                        {
+                            <span>User is null</span>    
+                        }
                     </main>
                 </div>
             }
@@ -126,6 +136,8 @@
                 _isDarkMode = Benutzer.ThemeMode == EnumThemeMode.Dark;
             }
         }
+
+        _isLoading = false;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -136,9 +148,6 @@
             {
                 await ApplyTheme(isStartup: true);
             }
-
-            _isLoading = false;
-            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -150,7 +159,7 @@
 
     private async Task CreateUserFromClaim(List<Claim> claims)
     {
-        Benutzer = new Benutzer();
+        var benutzer = new Benutzer();
 
         var claimEmail = claims.FirstOrDefault(c => c.Type == "preferred_username");
         var claimName = claims.FirstOrDefault(c => c.Type == "name");
@@ -162,22 +171,24 @@
             if (claimGroups.Any() || claimEmail.Value.Contains("@itree.ch"))
             {
                 var grpList = claimGroups.Select(c => c.Value).ToList();
-                Benutzer.Email = claimEmail.Value;
-                Benutzer.Name = claimName.Value;
-                Benutzer.Uid = new Guid(claimUid.Value);
-                Benutzer = await UserService.CreateBenutzer(Benutzer, grpList);
+                benutzer.Email = claimEmail.Value;
+                benutzer.Name = claimName.Value;
+                benutzer.Uid = new Guid(claimUid.Value);
+                benutzer = await UserService.CreateBenutzer(benutzer, grpList);
             }
             else
             {
-                Benutzer.IsAuthenticated = true;
-                Benutzer.IsAuthorized = false;
+                benutzer.IsAuthenticated = true;
+                benutzer.IsAuthorized = false;
             }
         }
         else
         {
-            Benutzer.IsAuthenticated = false;
-            Benutzer.IsAuthorized = false;
+            benutzer.IsAuthenticated = false;
+            benutzer.IsAuthorized = false;
         }
+
+        Benutzer = benutzer;
     }
 
     private async Task ApplyTheme(bool isStartup = false)
