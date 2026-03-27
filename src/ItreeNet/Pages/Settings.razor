@@ -3,8 +3,11 @@
 @using System.Collections.ObjectModel
 @inject IArbeitszeitService ArbeitszeitService
 @inject IArbeitszeitReduktionService ArbeitszeitReduktionService
+@inject IApplikationService ApplikationService
+@inject IReleaseService ReleaseService
 @inject ITeamService TeamService
 @inject ILogger<Settings> Logger
+@using ItreeMud.Extensions
 @layout Layout
 
 <h3 class="text-gray-800">Einstellungen</h3>
@@ -15,7 +18,7 @@
 }
 else
 {
-    <Divider Title="Allgemein" Category="EnumSettingCategory.Allgemein"/>
+    <Divider Title="Allgemein" Category="EnumSettingCategory.Allgemein" />
     @*###### Teams ######*@
     <div class="card bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow">
         <SettingCardHeader Title="Teams" Category="EnumSettingCategory.Allgemein" @bind-IsVisible="@_showTeam" />
@@ -23,7 +26,8 @@ else
         {
             <div class="card-body bg-@Benutzer!.ThemeMode.ToString()!.ToLower()">
                 <MudDataGrid T="Team" Items="_teams" Dense="true" Hover="true" Bordered="true" Striped="true"
-                             SortMode="SortMode.Multiple" FilterMode="DataGridFilterMode.ColumnFilterRow">
+                             SortMode="SortMode.Multiple" FilterMode="DataGridFilterMode.ColumnFilterRow"
+                             RowClick="@(args => OpenDialog(args.Item, "edit"))">
                     <Columns>
                         <PropertyColumn Property="x => x.Bezeichnung" Title="Bezeichnung" />
                         <PropertyColumn Property="x => x.Sort" Title="Sort" />
@@ -39,15 +43,14 @@ else
                                 }
                             </CellTemplate>
                         </TemplateColumn>
-                        <TemplateColumn>
+                        <TemplateColumn CellStyle="width:1px;padding:0 4px;" HeaderStyle="width:1px;padding:0 4px;">
                             <HeaderTemplate>
                                 <div class="new-entry" @onclick="@(() => OpenDialog(new Team(), "new"))">
                                     <MudIcon Icon="@Icons.Material.Filled.Add" />
                                 </div>
                             </HeaderTemplate>
                             <CellTemplate Context="item">
-                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenDialog(item.Item, "edit"))" Size="Size.Small" />
-                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog(item.Item, "delete"))" Size="Size.Small" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog(item.Item, "delete"))" Size="Size.Small" />
                             </CellTemplate>
                         </TemplateColumn>
                     </Columns>
@@ -57,7 +60,7 @@ else
     </div>
     <br />
 
-    <Divider Title="Zeiterfassung" Category="EnumSettingCategory.Zeiterfassung"/>
+    <Divider Title="Zeiterfassung" Category="EnumSettingCategory.Zeiterfassung" />
 
     @*###### Arbeitszeiten ######*@
     <div class="card bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow">
@@ -66,7 +69,8 @@ else
         {
             <div class="card-body bg-@Benutzer!.ThemeMode.ToString()!.ToLower()">
                 <MudDataGrid T="Arbeitszeit" Items="@(_arbeitszeiten?.Where(a => a.Jahr == _arbeitszeitJahr).ToList())" Dense="true" Hover="true" Bordered="true" Striped="true"
-                             SortMode="SortMode.Multiple" FilterMode="DataGridFilterMode.ColumnFilterRow">
+                             SortMode="SortMode.Multiple" FilterMode="DataGridFilterMode.ColumnFilterRow"
+                             RowClick="@(args => OpenDialog(args.Item, "edit"))">
                     <ToolBarContent>
                         <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" OnClick="@(() => _arbeitszeitJahr--)" />
                         <span style="min-width: 40px; text-align: center;">@_arbeitszeitJahr</span>
@@ -77,15 +81,14 @@ else
                         <PropertyColumn Property="x => x.Monat" Title="Monat" />
                         <PropertyColumn Property="x => x.Zeit" Title="Zeit" />
                         <PropertyColumn Property="x => x.Tagesarbeitszeit" Title="Tagesarbeitszeit" />
-                        <TemplateColumn>
+                        <TemplateColumn CellStyle="width:1px;padding:0 4px;" HeaderStyle="width:1px;padding:0 4px;">
                             <HeaderTemplate>
                                 <div class="new-entry" @onclick="@(() => OpenDialog(new Arbeitszeit(), "new"))">
                                     <MudIcon Icon="@Icons.Material.Filled.Add" />
                                 </div>
                             </HeaderTemplate>
                             <CellTemplate Context="item">
-                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenDialog(item.Item, "edit"))" Size="Size.Small" />
-                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog(item.Item, "delete"))" Size="Size.Small" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog(item.Item, "delete"))" Size="Size.Small" />
                             </CellTemplate>
                         </TemplateColumn>
                     </Columns>
@@ -101,7 +104,8 @@ else
         {
             <div class="card-body bg-@Benutzer!.ThemeMode.ToString()!.ToLower()">
                 <MudDataGrid T="ArbeitszeitReduktion" Items="@(_arbeitszeitReduktionen?.Where(r => r.Datum.Year == _reduktionJahr).ToList())" Dense="true" Hover="true" Bordered="true" Striped="true"
-                             SortMode="SortMode.Multiple" FilterMode="DataGridFilterMode.ColumnFilterRow">
+                             SortMode="SortMode.Multiple" FilterMode="DataGridFilterMode.ColumnFilterRow"
+                             RowClick="@(args => OpenDialog(args.Item, "edit"))">
                     <ToolBarContent>
                         <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" OnClick="@(() => _reduktionJahr--)" />
                         <span style="min-width: 40px; text-align: center;">@_reduktionJahr</span>
@@ -114,15 +118,81 @@ else
                             </CellTemplate>
                         </TemplateColumn>
                         <PropertyColumn Property="x => x.Reduktion" Title="Reduktion" />
-                        <TemplateColumn>
+                        <TemplateColumn CellStyle="width:1px;padding:0 4px;" HeaderStyle="width:1px;padding:0 4px;">
                             <HeaderTemplate>
                                 <div class="new-entry" @onclick="@(() => OpenDialog(new ArbeitszeitReduktion(), "new"))">
                                     <MudIcon Icon="@Icons.Material.Filled.Add" />
                                 </div>
                             </HeaderTemplate>
                             <CellTemplate Context="item">
-                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenDialog(item.Item, "edit"))" Size="Size.Small" />
-                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog(item.Item, "delete"))" Size="Size.Small" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog(item.Item, "delete"))" Size="Size.Small" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            </div>
+        }
+    </div>
+    <br />
+
+    <Divider Title="Releases" Category="EnumSettingCategory.Releases" />
+    @*###### Applikationen ######*@
+    <div class="card bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow">
+        <SettingCardHeader Title="Applikations" Category="EnumSettingCategory.Releases" @bind-IsVisible="@_showApps" />
+        @if (_showApps)
+        {
+            <div class="card-body bg-@Benutzer!.ThemeMode.ToString()!.ToLower()">
+                <MudDataGrid T="Applikation" Items="_apps" Dense="true" Hover="true" Bordered="true" Striped="true"
+                             SortMode="SortMode.Multiple" FilterMode="DataGridFilterMode.ColumnFilterRow"
+                             RowClick="@(args => OpenDialog(args.Item, "edit"))">
+                    <Columns>
+                        <PropertyColumn Property="x => x.Bezeichnung" Title="Bezeichnung" />
+                        <TemplateColumn CellStyle="width:1px;padding:0 4px;" HeaderStyle="width:1px;padding:0 4px;">
+                            <HeaderTemplate>
+                                <div class="new-entry" @onclick="@(() => OpenDialog(new Applikation(), "new"))">
+                                    <MudIcon Icon="@Icons.Material.Filled.Add" />
+                                </div>
+                            </HeaderTemplate>
+                            <CellTemplate Context="item">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog(item.Item, "delete"))" Size="Size.Small" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            </div>
+        }
+    </div>
+    <br />
+    @*###### Releases ######*@
+    <div class="card bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow">
+        <SettingCardHeader Title="Releases" Category="EnumSettingCategory.Releases" @bind-IsVisible="@_showReleases" />
+        @if (_showReleases)
+        {
+            <div class="card-body bg-@Benutzer!.ThemeMode.ToString()!.ToLower()">
+                <MudDataGrid T="Release" Items="_releases" Dense="true" Hover="true" Bordered="true" Striped="true"
+                             SortMode="SortMode.Multiple" FilterMode="DataGridFilterMode.ColumnFilterRow"
+                             RowClick="@(args => OpenDialog(args.Item, "edit"))">
+                    <ToolBarContent>
+                        <MudDatePicker @bind-Date="_releaseVon" DateFormat="dd.MM.yyyy" Margin="Margin.Dense" Style="max-width:150px;" Label="Von" />
+                        <MudDatePicker @bind-Date="_releaseBis" DateFormat="dd.MM.yyyy" Margin="Margin.Dense" Style="max-width:150px;" Class="ml-2" Label="Bis" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Search" Size="Size.Small" Class="ml-2" OnClick="@LoadReleases" />
+                    </ToolBarContent>
+                    <Columns>
+                        <PropertyColumn Property="x => x.ApplikationName" Title="Applikation" />
+                        <PropertyColumn Property="x => x.Bezeichnung" Title="Bezeichnung" />
+                        <TemplateColumn Title="Datum">
+                            <CellTemplate Context="item">
+                                @item.Item.Datum.ToString("d")
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn CellStyle="width:1px;padding:0 4px;" HeaderStyle="width:1px;padding:0 4px;">
+                            <HeaderTemplate>
+                                <div class="new-entry" @onclick="@(() => OpenDialog(new Release(), "new"))">
+                                    <MudIcon Icon="@Icons.Material.Filled.Add" />
+                                </div>
+                            </HeaderTemplate>
+                            <CellTemplate Context="item">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog(item.Item, "delete"))" Size="Size.Small" />
                             </CellTemplate>
                         </TemplateColumn>
                     </Columns>
@@ -148,14 +218,30 @@ else
                  OnSave="@OnSave"
                  OnClose="@OnClose"
                  AutoGenerate="true" />
-
+@*Team Window*@
 <ItreeFormWindow WindowVisible="@_showTeamWindow"
                  Model="@_selectedTeam"
                  Validator="@(new TeamValidator())"
                  OnSave="@OnSave"
                  OnClose="@OnClose"
                  AutoGenerate="true" />
+@*App Window*@
+<ItreeFormWindow WindowVisible="@_showAppWindow"
+                 Model="@_selectedApp"
+                 Validator="@(new ApplikationValidator())"
+                 OnSave="@OnSave"
+                 OnClose="@OnClose"
+                 AutoGenerate="true" />
 
+@*Release Window*@
+<ItreeFormWindow WindowVisible="@_showReleaseWindow"
+                 Model="@_selectedRelease"
+                 DropdownList="@_appDropdowns"
+                 IgnorePropertyList="ApplikationName"
+                 Validator="@(new ReleaseValidator())"
+                 OnSave="@OnSave"
+                 OnClose="@OnClose"
+                 AutoGenerate="true" />
 
 @*Confirm delete*@
 <ConfirmWindow IsVisible="@_isVisibleDeleteConfirm" CheckHandler="@DeleteConfirm" Type="EnumConfirmType.Delete" />
@@ -173,13 +259,17 @@ else
     private List<Arbeitszeit>? _arbeitszeiten;
     private List<ArbeitszeitReduktion>? _arbeitszeitReduktionen;
     private List<Team>? _teams;
+    private List<Applikation>? _apps;
+    private List<Release>? _releases;
     private string? _selectedType;
-    private List<ItreeFormDropdown> _teamDropdowns = new();
+    private List<ItreeFormDropdown> _appDropdowns = new();
 
     //private Mitarbeiter? _selectedMitarbeiter;
     private Arbeitszeit? _selectedArbeitszeit;
     private ArbeitszeitReduktion? _selectedArbeitszeitReduktion;
     private Team? _selectedTeam;
+    private Applikation? _selectedApp;
+    private Release? _selectedRelease;
 
     private bool _isLoading = true;
     private bool _isVisibleDeleteConfirm;
@@ -188,13 +278,21 @@ else
     private bool _showArbeitszeiten;
     private bool _showArbeitszeitreduktion;
     private bool _showTeam;
+    private bool _showApps;
+    private bool _showReleases;
 
     private int _arbeitszeitJahr = DateTime.Now.Year;
     private int _reduktionJahr = DateTime.Now.Year;
+    private DateTime? _releaseVon = new DateTime(DateTime.Today.Year, 1, 1);
+    private DateTime? _releaseBis = new DateTime(DateTime.Today.Year, 12, 31);
 
     private bool _showArbeitszeitenWindow;
     private bool _showArbeitszeitreduktionWindow;
     private bool _showTeamWindow;
+    private bool _showAppWindow;
+    private bool _showReleaseWindow;
+
+    private bool _customReleaseFilter = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -206,12 +304,22 @@ else
         _arbeitszeiten = await ArbeitszeitService.GetAllAsync();
         _arbeitszeitReduktionen = await ArbeitszeitReduktionService.GetAllAsync();
         _teams = await TeamService.GetAllAsync();
+        _apps = await ApplikationService.GetAllAsync();
+        _releases = await ReleaseService.GetAllAsync();
 
-        var teamDropDownList = new ObservableCollection<Team>(_teams.Where(k => k.Aktiv).ToList());
-        var teamDropdown = BaseExtension.CreateItreeFormDropdown(teamDropDownList, "TeamId", nameof(Team.Bezeichnung), "Team");
-        _teamDropdowns.Add(teamDropdown);
+        var appDropDownList = new ObservableCollection<Applikation>(_apps);
+        var appDropdown = ItreeFormDropdownExtension.CreateItreeFormDropdown(appDropDownList, "ApplikationId", nameof(Applikation.Bezeichnung), "Applikation");
+        _appDropdowns.Add(appDropdown);
 
         _isLoading = false;
+    }
+
+    private async Task LoadReleases()
+    {
+        _customReleaseFilter = true;
+        _releases = await ReleaseService.GetAllAsync(
+            _releaseVon.HasValue ? DateOnly.FromDateTime(_releaseVon.Value) : null,
+            _releaseBis.HasValue ? DateOnly.FromDateTime(_releaseBis.Value) : null);
     }
 
     #region Window
@@ -232,7 +340,18 @@ else
                 _teams = await TeamService.SaveAsync(_selectedTeam!);
                 _showTeamWindow = false;
                 break;
+            case "applikation":
+                _apps = await ApplikationService.SaveAsync(_selectedApp!);
+                _showAppWindow = false;
+                break;
+            case "release":
+                await ReleaseService.SaveAsync(_selectedRelease!);
+                if (_customReleaseFilter)
+                    await LoadReleases();
+                _showReleaseWindow = false;
+                break;
         }
+        StateHasChanged();
     }
 
     private void OnClose()
@@ -240,6 +359,8 @@ else
         _showArbeitszeitenWindow = false;
         _showArbeitszeitreduktionWindow = false;
         _showTeamWindow = false;
+        _showAppWindow = false;
+        _showReleaseWindow = false;
     }
 
     private async Task DeleteConfirm(bool shouldDelete)
@@ -258,6 +379,13 @@ else
                         break;
                     case "team":
                         _teams = await TeamService.DeleteAsync(_selectedTeam!);
+                        break;
+                    case "applikation":
+                        _apps = await ApplikationService.DeleteAsync(_selectedApp!);
+                        break;
+                    case "release":
+                        await ReleaseService.DeleteAsync(_selectedRelease!);
+                        await LoadReleases();
                         break;
                 }
             }
@@ -288,6 +416,12 @@ else
                     break;
                 case "team":
                     _showTeamWindow = false;
+                    break;
+                case "applikation":
+                    _showAppWindow = false;
+                    break;
+                case "release":
+                    _showReleaseWindow = false;
                     break;
             }
         }
@@ -341,7 +475,7 @@ else
                 }
                 break;
             case "team":
-                switch(action)
+                switch (action)
                 {
                     case "delete":
                         _selectedTeam = obj as Team;
@@ -352,13 +486,47 @@ else
                         _selectedTeam!.Aktiv = true;
                         _selectedTeam!.Sort = _teams!.Any() ? _teams!.Max(w => w.Sort) + 1 : 1;
                         _showTeamWindow = true;
-                    break;
+                        break;
                     default:
                         _selectedTeam = (obj as Team).Clone();
                         _showTeamWindow = true;
                         break;
                 }
-            break;
+                break;
+            case "applikation":
+                switch (action)
+                {
+                    case "delete":
+                        _selectedApp = obj as Applikation;
+                        _isVisibleDeleteConfirm = true;
+                        break;
+                    case "new":
+                        _selectedApp = (obj as Applikation).Clone();
+                        _showAppWindow = true;
+                        break;
+                    default:
+                        _selectedApp = (obj as Applikation).Clone();
+                        _showAppWindow = true;
+                        break;
+                }
+                break;
+            case "release":
+                switch (action)
+                {
+                    case "delete":
+                        _selectedRelease = obj as Release;
+                        _isVisibleDeleteConfirm = true;
+                        break;
+                    case "new":
+                        _selectedRelease = (obj as Release).Clone();
+                        _showReleaseWindow = true;
+                        break;
+                    default:
+                        _selectedRelease = (obj as Release).Clone();
+                        _showReleaseWindow = true;
+                        break;
+                }
+                break;
         }
     }
 

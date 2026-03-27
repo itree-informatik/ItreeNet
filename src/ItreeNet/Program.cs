@@ -70,6 +70,7 @@ builder.Services.AddAutoMapper(cfg => {
 builder.Services.AddScoped<IAnwesenheitService, AnwesenheitService>();
 builder.Services.AddScoped<IArbeitszeitService, ArbeitszeitService>();
 builder.Services.AddScoped<IArbeitszeitReduktionService, ArbeitszeitReduktionService>();
+builder.Services.AddScoped<IApplikationService, ApplikationService>();
 builder.Services.AddScoped<BodyChangedService>();
 builder.Services.AddScoped<IVorgangService, VorgangService>();
 builder.Services.AddScoped<IKundenService, KundenService>();
@@ -89,6 +90,7 @@ builder.Services.AddScoped<IDokumentService, DokumentService>();
 builder.Services.AddSingleton<MetadataProvider>();
 builder.Services.AddScoped<MetadataTransferService>();
 builder.Services.AddScoped<IProfilService, ProfilService>();
+builder.Services.AddScoped<IReleaseService, ReleaseService>();
 builder.Services.AddScoped<IClaimsTransformation, UserInfoClaims>();
 
 // Singelton

@@ -4,6 +4,7 @@
 @inject IDashboardService DashboardService
 @inject IBuchungsService BuchungsService
 @inject IMitarbeiterService MitarbeiterService
+@inject IReleaseService ReleaseService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JsRuntime
 @layout Layout
@@ -477,6 +478,51 @@
             </MudPaper>
         </MudItem>
 
+        <!-- Nächste Releases -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
+                <div class="row no-gutters align-items-center mb-2">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Release-Planung</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Nächste Releases</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-rocket-takeoff text-gray-300 fs-2"></i>
+                    </div>
+                </div>
+                @if (_nextReleases != null)
+                {
+                    <table class="table table-sm table-borderless @_tableTheme align-middle">
+                        <thead>
+                            <tr class="text-gray-800">
+                                <td>Applikation</td>
+                                <td>Release</td>
+                                <td>Datum</td>
+                                <td>Tage</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var release in _nextReleases)
+                            {
+                                var tage = release.Datum.DayNumber - DateOnly.FromDateTime(DateTime.Today).DayNumber;
+                                var tageClass = tage <= 14 ? "text-danger" : tage <= 30 ? "text-warning" : "text-success";
+                                <tr class="text-gray-800">
+                                    <td><strong>@release.ApplikationName</strong></td>
+                                    <td>@release.Bezeichnung</td>
+                                    <td>@release.Datum.ToString("dd.MM.yyyy")</td>
+                                    <td class="@tageClass"><strong>@tage</strong></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <ItreeSpinner />
+                }
+            </MudPaper>
+        </MudItem>
+
         <!-- Frontendtests (ColSpan=2 -> md=8) -->
         <MudItem xs="12" md="8">
             <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
@@ -792,6 +838,7 @@
     private List<FrontendtestOverview>? _dashboardFrontendtests;
     private List<PerformanceList>? _teamPerformances;
     private PerformanceList? _personalPerformance;
+    private List<Release>? _nextReleases;
     private int PerformanceJahr { get; set; }
     private Guid PerformanceMitarbeiterId { get; set; }
 
@@ -858,9 +905,10 @@
         var tFrontend = DashboardService.GetFrontendtestOverviewsAsync(100);
         var tTeam = DashboardService.GetTeamProductivity(_mitarbeiterId);
         var tPersonal = DashboardService.GetProductivity(_mitarbeiterId);
+        var tReleases = ReleaseService.GetNextPerAppAsync();
 
         var all = new List<Task> { tMitarbeiter, tFerien, tFerienNow, tSaldo, tSaldoAkt, tAbschluss,
-                               tTop, tProv, tMitarb, tProj, tPipes, tFrontend, tTeam, tPersonal };
+                               tTop, tProv, tMitarb, tProj, tPipes, tFrontend, tTeam, tPersonal, tReleases };
 
         var boxPending = new HashSet<Task> { tFerien, tFerienNow, tSaldo, tSaldoAkt, tAbschluss };
         var boxesDoneFlag = false;
@@ -891,6 +939,7 @@
             else if (done == tFrontend) _dashboardFrontendtests = await tFrontend;
             else if (done == tTeam) _teamPerformances = await tTeam;
             else if (done == tPersonal) _personalPerformance = await tPersonal;
+            else if (done == tReleases) _nextReleases = await tReleases;
 
             // Box-Loading-Flag sobald alle Box-Tasks fertig
             if (!boxesDoneFlag && boxPending.Contains(done))

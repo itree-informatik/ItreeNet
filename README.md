@@ -22,6 +22,49 @@ Interne Webanwendung zur **Zeiterfassung, Kunden- und Mitarbeiterverwaltung** de
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - SQL Server Instanz
+- [Azure AD](https://portal.azure.com/) — App-Registrierung mit OIDC-Konfiguration
+- **AutoMapper Lizenz** — kommerzieller Lizenzschlüssel erforderlich ([automapper.org](https://automapper.org/))
+- **GemBox.Document Lizenz** — kommerzieller Lizenzschlüssel für Dokumentenerzeugung ([gemboxsoftware.com](https://www.gemboxsoftware.com/))
+
+### User Secrets konfigurieren
+
+Die Anwendung liest sensible Konfigurationswerte aus `secrets.json` (ASP.NET Core User Secrets). Für lokale Entwicklung:
+
+```bash
+cd src/ItreeNet
+dotnet user-secrets init
+```
+
+Struktur der `secrets.json` (Beispielwerte):
+
+```json
+{
+  "ConnectionStrings": {
+    "APP": "Server=localhost;Database=ItreeNet;User Id=sa;Password=YourPassword;TrustServerCertificate=True",
+    "Mail": "endpoint=https://your-acs-resource.communication.azure.com;accesskey=YOUR_ACCESS_KEY"
+  },
+  "AzureAd": {
+    "AllowedHosts": "*",
+    "CallbackPath": "/signin-oidc",
+    "ClientId": "00000000-0000-0000-0000-000000000000",
+    "ClientSecret": "your-client-secret",
+    "Instance": "https://login.microsoftonline.com/",
+    "TenantId": "00000000-0000-0000-0000-000000000000"
+  },
+  "File": {
+    "Store": "./FileStore"
+  },
+  "Pipelines": {
+    "Projects": "APP$1,APP2$12",
+    "PAT": "your-azure-devops-pat",
+    "UpdateInHours": "2"
+  },
+  "LicenseKeys": {
+    "AutoMapper": "your-automapper-license-key",
+    "GEMBOX_DOCUMENT_KEY": "your-gembox-license-key"
+  }
+}
+```
 
 ## Schnellstart
 

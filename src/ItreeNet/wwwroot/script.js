@@ -131,6 +131,9 @@ function getLeftPositionOfElement(elementQuery) {
 
 var themeChanger = {
     changeCss: function (mode) {
+        document.cookie = 'app-theme=' + mode + '; path=/; SameSite=Lax; max-age=31536000';
+        document.documentElement.classList.toggle('dark-mode', mode === 'dark');
+
         var appCssFileUrl = mode === "dark" ? "css/app-dark.css" : "css/app-light.css";
 
         var oldLinkApp = document.getElementById("AppThemeLink");

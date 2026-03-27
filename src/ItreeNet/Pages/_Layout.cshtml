@@ -16,7 +16,9 @@
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
     <link href="ItreeNet.styles.css" rel="stylesheet" />
     <link href="css/app.css" rel="stylesheet" />
-    <link rel="stylesheet" href="css/app-light.css" id="AppThemeLink" />
+    @{var _appTheme = Context.Request.Cookies["app-theme"] ?? "light";}
+    <link rel="stylesheet" href="css/app-@(_appTheme).css" id="AppThemeLink" />
+    <script>if(document.cookie.match('app-theme=dark'))document.documentElement.classList.add('dark-mode');</script>
     <!-- Scripts -->
     <script src="script.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
 namespace ItreeNet.Data.Models.DB;
 
@@ -12,8 +12,10 @@ public partial class ZeiterfassungContext : DbContext
         : base(options)
     {
     }
-    
+
     public virtual DbSet<TAnwesenheit> TAnwesenheit { get; set; }
+
+    public virtual DbSet<TApplikation> TApplikation { get; set; }
 
     public virtual DbSet<TArbeitszeit> TArbeitszeit { get; set; }
 
@@ -46,6 +48,8 @@ public partial class ZeiterfassungContext : DbContext
     public virtual DbSet<TProfil> TProfil { get; set; }
 
     public virtual DbSet<TProjekt> TProjekt { get; set; }
+
+    public virtual DbSet<TRelease> TRelease { get; set; }
 
     public virtual DbSet<TSpesen> TSpesen { get; set; }
 
@@ -81,8 +85,6 @@ public partial class ZeiterfassungContext : DbContext
         }
         base.OnModelCreating(modelBuilder);
 
-
-
         modelBuilder.Entity<TAnwesenheit>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK_Anwesenheit");
@@ -92,6 +94,14 @@ public partial class ZeiterfassungContext : DbContext
             entity.HasOne(d => d.Mitarbeiter).WithMany(p => p.TAnwesenheit)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Anwesenheit_Mitarbeiter");
+        });
+
+        modelBuilder.Entity<TApplikation>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_Applikation");
+
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(e => e.Bezeichnung).HasMaxLength(255);
         });
 
         modelBuilder.Entity<TArbeitszeit>(entity =>
@@ -249,6 +259,18 @@ public partial class ZeiterfassungContext : DbContext
             entity.HasOne(d => d.Kunde).WithMany(p => p.TProjekt)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Projekt_Kunde");
+        });
+
+        modelBuilder.Entity<TRelease>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_Release");
+
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(e => e.Bezeichnung).HasMaxLength(255);
+
+            entity.HasOne(d => d.Applikation).WithMany(p => p.TRelease)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Release_Applikation");
         });
 
         modelBuilder.Entity<TSpesen>(entity =>

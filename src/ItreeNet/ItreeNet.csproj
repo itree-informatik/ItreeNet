@@ -33,8 +33,7 @@
 	<PackageReference Include="ClosedXML" Version="0.105.0" />
 	<PackageReference Include="Serilog.Sinks.PostgreSQL" Version="2.3.0" />
 	<PackageReference Include="System.IO.Packaging" Version="10.0.5" />
-	<PackageReference Include="ItreeMud" Version="1.0.1" />
-	<PackageReference Include="MudBlazor" Version="9.2.0" />
+	<PackageReference Include="ItreeMud" Version="1.0.3" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.5">
 		<PrivateAssets>all</PrivateAssets>
