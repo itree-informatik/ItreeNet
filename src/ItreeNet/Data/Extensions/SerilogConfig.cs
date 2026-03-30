@@ -32,6 +32,7 @@ namespace ItreeNet.Data.Extensions
                     .WriteTo.PostgreSQL(
                         connectionString: connectionString,
                         tableName: table,
+                        schemaName: "dbo",
                         needAutoCreateTable: createTable
                     )
                     .WriteTo.Console()

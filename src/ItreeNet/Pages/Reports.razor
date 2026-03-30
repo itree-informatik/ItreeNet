@@ -9,6 +9,7 @@
 @inject IBuchungsService BuchungsService
 @inject IDokumentService DokumentService
 @inject IJSRuntime JsRuntime
+@inject ISnackbar Snackbar
 @layout Layout
 
 <style>
@@ -27,13 +28,52 @@
 }
 else
 {
-    <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow mt2">
-        <div class="text-gray-800">Auswertung erstellen (ohne Projekt = Arbeitsrapport - mit Projekt = Projektübersicht)</div>
+    <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow mt2" style="overflow: visible;">
+        <div class="text-gray-800">Abrechnung</div>
+        <hr class="mt-1" />
+        <div class="d-flex gap-3 align-items-end">
+            <div style="width:150px;">
+                <label>Datum</label>
+                <MudDatePicker @bind-Date="@_abrechnungsDatum" Editable="true" Margin="Margin.Dense" />
+            </div>
+            <div class="d-flex gap-2">
+                @if (_isLoadingArbeitsrapport)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" Size="Size.Small">
+                        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
+                        Arbeitsrapport erstellen
+                    </MudButton>
+                }
+                else
+                {
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Description" OnClick="@ErstelleArbeitsrapporteOffen" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="@_isLoadingAbrechnung">
+                        Arbeitsrapport erstellen
+                    </MudButton>
+                }
+                @if (_isLoadingAbrechnung)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="true" Size="Size.Small">
+                        <MudProgressCircular Indeterminate="true" Color="Color.Success" Size="Size.Small" />
+                        Abrechnung durchgeführt
+                    </MudButton>
+                }
+                else
+                {
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.CheckCircle" OnClick="@AbrechnungDurchgefuehrt" Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" Disabled="@_isLoadingArbeitsrapport">
+                        Abrechnung durchgeführt
+                    </MudButton>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow mt-2">
+        <div class="text-gray-800">Projektübersicht erstellen</div>
         <hr class="mt-1" />
         <div class="d-flex justify-content-between">
             <div>
                 <label for="dropdownlist_jahr">Jahr</label>
-                <MudSelect @bind-Value="@_selectedJahr" Style="width:200px;">
+                <MudSelect @bind-Value="@_selectedJahr" Style="width:200px;" Margin="Margin.Dense">
                     @if (_jahr != null)
                     {
                         @foreach (var item in _jahr)
@@ -45,7 +85,7 @@ else
             </div>
             <div>
                 <label for="dropdownlist_monatvon">Monat von</label>
-                <MudSelect @bind-Value="@_selectedMonatVon" Style="width:200px;">
+                <MudSelect @bind-Value="@_selectedMonatVon" Style="width:200px;" Margin="Margin.Dense">
                     @if (_monatVon != null)
                     {
                         @foreach (var item in _monatVon)
@@ -57,7 +97,7 @@ else
             </div>
             <div>
                 <label for="dropdownlist_monatbis">Monat bis</label>
-                <MudSelect @bind-Value="@_selectedMonatBis" Style="width:200px;">
+                <MudSelect @bind-Value="@_selectedMonatBis" Style="width:200px;" Margin="Margin.Dense">
                     @if (_monatBis != null)
                     {
                         @foreach (var item in _monatBis)
@@ -69,7 +109,7 @@ else
             </div>
             <div>
                 <label for="dropdownlist_kunde">Kunde</label>
-                <MudSelect T="Guid?" Value="@_selectedKundeAusw" ValueChanged="@OnChangeKundenAuswValue" Style="width:300px;">
+                <MudSelect T="Guid?" Value="@_selectedKundeAusw" ValueChanged="@OnChangeKundenAuswValue" Style="width:300px;" Margin="Margin.Dense">
                     @if (_kundenAusw != null)
                     {
                         @foreach (var item in _kundenAusw.OrderBy(k => k.Kundenname))
@@ -83,7 +123,7 @@ else
         <div class="d-flex justify-content-between mt-2">
             <div>
                 <label for="dropdownlist_alleprojekt">Projekt</label>
-                <MudSelect @bind-Value="@_selectedProjektAusw" Style="width:500px;">
+                <MudSelect @bind-Value="@_selectedProjektAusw" Style="width:500px;" Margin="Margin.Dense">
                     @if (_projekteAusw != null)
                     {
                         @foreach (var item in _projekteAusw.OrderBy(p => p.Nummer).ThenBy(p => p.Bezeichnung))
@@ -97,18 +137,18 @@ else
                 <label for="checkbox_projectstatus" style="width: 150px;">Aktive Projekte</label>
                 <MudCheckBox @bind-Value="_onlyActiveProjects" T="bool" />
             </div>
-            <div class="d-flex justify-content-end" style="width: 105px">
+            <div class="d-flex justify-content-end align-self-end" style="width: auto">
                 @if (_isLoadingDownload)
                 {
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" OnClick="@Erstellen">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" OnClick="@Erstellen" Size="Size.Small">
                         <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
-                        @ReportName
+                        Projektübersicht erstellen
                     </MudButton>
                 }
                 else
                 {
-                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Settings" OnClick="@Erstellen" Variant="Variant.Filled" Color="Color.Primary">
-                        @ReportName
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Settings" OnClick="@Erstellen" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="@(_selectedProjektAusw == null)">
+                        Projektübersicht erstellen
                     </MudButton>
                 }
             </div>
@@ -123,7 +163,7 @@ else
         <div class="d-flex justify-content-between">
             <div>
                 <label for="dropdownlist_mitarbeiter">Mitarbeiter</label>
-                <MudSelect @bind-Value="@_selectedMitarbeiter" Style="width:300px;">
+                <MudSelect @bind-Value="@_selectedMitarbeiter" Style="width:300px;" Margin="Margin.Dense">
                     <MudSelectItem Value="@((Guid?)null)">— Auswählen —</MudSelectItem>
                     @if (_mitarbeiter != null)
                     {
@@ -136,7 +176,7 @@ else
             </div>
             <div>
                 <label for="dropdownlist_team">Team</label>
-                <MudSelect @bind-Value="@_selectedTeam" Style="width:300px;">
+                <MudSelect @bind-Value="@_selectedTeam" Style="width:300px;" Margin="Margin.Dense">
                     <MudSelectItem Value="@((Guid?)null)">— Auswählen —</MudSelectItem>
                     @if (_teams != null)
                     {
@@ -149,17 +189,17 @@ else
             </div>
             <div>
                 <label for="fromDate">Datum ab</label>
-                <MudDatePicker @bind-Date="@_fromDate" Editable="true" Style="width:150px;" />
+                <MudDatePicker @bind-Date="@_fromDate" Editable="true" Style="width:150px;" Margin="Margin.Dense" />
             </div>
             <div>
                 <label for="toDate">Datum bis</label>
-                <MudDatePicker @bind-Date="@_toDate" Editable="true" Style="width:150px;" />
+                <MudDatePicker @bind-Date="@_toDate" Editable="true" Style="width:150px;" Margin="Margin.Dense" />
             </div>
         </div>
         <div class="d-flex justify-content-between mt-2">
             <div>
                 <label for="dropdownlist_kunde">Kunde</label>
-                <MudSelect T="Guid?" Value="@_selectedKunde" ValueChanged="@OnChangeKundeValue" Style="width:300px;">
+                <MudSelect T="Guid?" Value="@_selectedKunde" ValueChanged="@OnChangeKundeValue" Style="width:300px;" Margin="Margin.Dense">
                     @if (_kunden != null)
                     {
                         @foreach (var item in _kunden)
@@ -171,7 +211,7 @@ else
             </div>
             <div>
                 <label for="dropdownlist_projekt">Projekt</label>
-                <MudSelect T="Guid?" Value="@_selectedProjekt" ValueChanged="@OnChangeProjektValue" Style="width:300px;">
+                <MudSelect T="Guid?" Value="@_selectedProjekt" ValueChanged="@OnChangeProjektValue" Style="width:300px;" Margin="Margin.Dense">
                     @if (_projekte != null)
                     {
                         @foreach (var item in _projekte)
@@ -183,7 +223,7 @@ else
             </div>
             <div>
                 <label for="dropdownlist_aktivitaet">Aktivität</label>
-                <MudSelect @bind-Value="@_selectedAktivitaet" Style="width:300px;">
+                <MudSelect @bind-Value="@_selectedAktivitaet" Style="width:300px;" Margin="Margin.Dense">
                     @if (_aktivitaeten != null)
                     {
                         @foreach (var item in _aktivitaeten)
@@ -193,17 +233,17 @@ else
                     }
                 </MudSelect>
             </div>
-            <div class="d-flex justify-content-end" style="width: 105px">
+            <div class="d-flex justify-content-end align-self-end" style="width: auto">
                 @if (_isLoadingBookings)
                 {
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" OnClick="@Suchen">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" OnClick="@Suchen" Size="Size.Small">
                         <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
                         Suchen
                     </MudButton>
                 }
                 else
                 {
-                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Search" OnClick="@Suchen" Variant="Variant.Filled" Color="Color.Primary">
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Search" OnClick="@Suchen" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">
                         Suchen
                     </MudButton>
                 }
@@ -261,6 +301,10 @@ else
     private bool _isLoading = true;
     private bool _isLoadingBookings;
     private bool _isLoadingDownload;
+    private bool _isLoadingArbeitsrapport;
+    private bool _isLoadingAbrechnung;
+
+    private DateTime? _abrechnungsDatum;
 
     private List<MitarbeiterModel>? _mitarbeiter;
     private List<Team>? _teams;
@@ -295,7 +339,6 @@ else
     private DateOnly? _from => _fromDate.HasValue ? DateOnly.FromDateTime(_fromDate.Value) : null;
     private DateOnly? _to => _toDate.HasValue ? DateOnly.FromDateTime(_toDate.Value) : null;
 
-    private string ReportName => _selectedProjektAusw == null ? "Arbeitsrapport erstellen" : "Projektübersicht erstellen";
     private string theme = string.Empty;
 
     protected override async Task OnInitializedAsync()
@@ -306,6 +349,9 @@ else
 
         theme = $"bg-{Benutzer!.ThemeMode.ToString()!.ToLower()}";
         MitarbeiterId = (Guid)Benutzer.MitarbeiterId;
+
+        var heute = DateTime.Today;
+        _abrechnungsDatum = new DateTime(heute.Year, heute.Month, 1).AddDays(-1);
 
         _mitarbeiter = await MitarbeiterService.GetAllActiveAsync();
         _kunden = await KundenService.GetAllActiveAsync();
@@ -338,32 +384,72 @@ else
 
     private async Task Erstellen()
     {
+        if (!_selectedProjektAusw.HasValue)
+            return;
+
         _isLoadingDownload = true;
         await InvokeAsync(StateHasChanged);
-        string filePath;
-        if (_selectedProjektAusw == null)
+
+        try
         {
-            // Arbeitsrapport
-            filePath = await DokumentService.CreateArbeitsrapporte(_selectedJahr, _selectedMonatVon, _selectedMonatBis);
+            var filePath = await DokumentService.CreateProjektUebersicht(_selectedJahr, _selectedMonatVon, _selectedMonatBis, _selectedProjektAusw.Value);
+            await DownloadFile(filePath);
         }
-        else
+        catch (Exception ex)
         {
-            if (!_selectedProjektAusw.HasValue)
-            {
-                return;
-            }
-            // Projektübersicht
-            filePath = await DokumentService.CreateProjektUebersicht(_selectedJahr, _selectedMonatVon, _selectedMonatBis, _selectedProjektAusw.Value);
+            Snackbar.Add(ex.Message, Severity.Warning);
         }
 
+        _isLoadingDownload = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ErstelleArbeitsrapporteOffen()
+    {
+        _isLoadingArbeitsrapport = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var filePath = await DokumentService.CreateArbeitsrapporteOffeneBuchungen();
+            await DownloadFile(filePath);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+
+        _isLoadingArbeitsrapport = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task AbrechnungDurchgefuehrt()
+    {
+        _isLoadingAbrechnung = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await BuchungsService.SetAbgerechnetAsync();
+            Snackbar.Add("Abrechnung erfolgreich durchgeführt", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+
+        _isLoadingAbrechnung = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task DownloadFile(string filePath)
+    {
         if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
         {
             await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
             using var streamRef = new DotNetStreamReference(stream: stream);
             await JsRuntime.InvokeVoidAsync("DownloadFileFromStream", Path.GetFileName(filePath), streamRef);
         }
-        _isLoadingDownload = false;
-        await InvokeAsync(StateHasChanged);
     }
 
     private async Task ExportExcel()

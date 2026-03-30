@@ -261,6 +261,8 @@ __pycache__/
 *.pyc
 /src/nuget-docker.config
 /src/Itree/FileStore/*
+/src/ItreeNet/Data/Database/
+/src/ItreeNet/FileStore/
 
 # Claude
 CLAUDE.md

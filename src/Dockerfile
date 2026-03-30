@@ -29,6 +29,11 @@ RUN dotnet publish $proj -c Release -o /app/publish -p:Version=$ASSEMBLY_VERSION
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS base
 WORKDIR /app
 
+ARG AUTOMAPPER_LICENSEKEY
+ARG GEMBOX_LICENSEKEY
+ENV LicenseKeys__AutoMapper=$AUTOMAPPER_LICENSEKEY
+ENV LicenseKeys__GEMBOX_DOCUMENT_KEY=$GEMBOX_LICENSEKEY
+
 # Copy published solution
 COPY --from=build /app/publish .
 

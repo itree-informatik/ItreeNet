@@ -365,7 +365,7 @@ namespace ItreeNet.Services
                     var oldModel = await context.TBuchung.AsNoTracking().SingleOrDefaultAsync(b => b.Id == model.Id)
                         ?? throw new InvalidDataException($"Buchung {model.Id} nicht gefunden");
 
-                    model.ChangedOn = DateTime.Now;
+                    model.ChangedOn = DateTime.UtcNow;
 
                     if (model.ChangedBy != _userService.CurrentUser.MitarbeiterId)
                     {
@@ -388,7 +388,7 @@ namespace ItreeNet.Services
                 else
                 {
                     model.ChangedBy = _userService.CurrentUser.MitarbeiterId;
-                    model.ChangedOn = DateTime.Now;
+                    model.ChangedOn = DateTime.UtcNow;
                 }
             }
             else
@@ -506,6 +506,22 @@ namespace ItreeNet.Services
             else
             {
                 context.TMitarbeiterSaldo.Add(mitarbeiterSaldo);
+            }
+
+            await context.SaveChangesAsync();
+        }
+
+        public async Task SetAbgerechnetAsync()
+        {
+            await using var context = await _dbFactory.CreateDbContextAsync();
+            var offeneBuchungen = await context.TBuchung
+                .Where(b => b.Abgerechnet == null && !b.Provisorisch)
+                .ToListAsync();
+
+            var heute = DateTime.UtcNow;
+            foreach (var buchung in offeneBuchungen)
+            {
+                buchung.Abgerechnet = heute;
             }
 
             await context.SaveChangesAsync();

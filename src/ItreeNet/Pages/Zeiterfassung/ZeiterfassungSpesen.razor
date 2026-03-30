@@ -46,6 +46,7 @@ else
         <MudDataGrid T="Spesen" Items="_spesenList" Dense="true" Hover="true" Bordered="true" Striped="true"
                      FilterMode="DataGridFilterMode.ColumnFilterRow"
                      SortMode="SortMode.Multiple"
+                     RowClick="@(args => { if (args.Item.EingereichtAm == null) OpenDialog("edit", args.Item); })"
                      Class="mb-2">
             <Columns>
                 <PropertyColumn Property="x => x.Datum" Title="Datum" Format="dd.MM.yyyy" />
@@ -67,7 +68,7 @@ else
                     </CellTemplate>
                 </TemplateColumn>
                 <PropertyColumn Property="x => x.EingereichtAm" Title="EingereichtAm" Format="dd.MM.yyyy" />
-                <TemplateColumn>
+                <TemplateColumn CellStyle="width:1px;padding:0 4px;" HeaderStyle="width:1px;padding:0 4px;">
                     <HeaderTemplate>
                         <div class="new-entry" @onclick="@(() => OpenDialog("new", new Spesen()))">
                             <MudIcon Icon="@Icons.Material.Filled.Add" />
@@ -77,12 +78,11 @@ else
                         <div class="new-entry">
                             @if (spesen.Item.EingereichtAm != null)
                             {
-                                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Cancel" OnClick="@(() => Deactivate(spesen.Item))" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">Einreichung zurückziehen</MudButton>
+                                <MudIconButton ButtonType="ButtonType.Button" Icon="@Icons.Material.Filled.Cancel" OnClick="@(() => Deactivate(spesen.Item))" title="Einreichung zurückziehen" Size="Size.Small" />
                             }
                             else
                             {
-                                <MudIconButton ButtonType="ButtonType.Button" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenDialog("edit", spesen.Item))" />
-                                <MudIconButton ButtonType="ButtonType.Button" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog("delete", spesen.Item))" />
+                                <MudIconButton ButtonType="ButtonType.Button" Icon="@Icons.Material.Filled.Delete" OnClick="@(() => OpenDialog("delete", spesen.Item))" Size="Size.Small" />
                             }
                         </div>
                     </CellTemplate>
@@ -204,7 +204,7 @@ else
         {
             _spesenList = await SpesenService.UpdateSpesenAsync(SelectedItem);
         }
-
+        _showSpesenWindow = false;
         OriginalItem = null;
         SelectedItem = null;
         await GetYears();

@@ -29,6 +29,9 @@ public partial class TBuchung
 
     public bool Stunden { get; set; }
 
+    [Column(TypeName = "datetime")]
+    public DateTime? Abgerechnet { get; set; }
+
     public bool Provisorisch { get; set; }
 
     public Guid? ChangedBy { get; set; }

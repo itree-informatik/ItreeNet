@@ -40,6 +40,13 @@ namespace ItreeNet.Services
         /// <param name="monatBis"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
+        public async Task<string> CreateArbeitsrapporteOffeneBuchungen()
+        {
+            ClearTempFolder();
+            var liste = await GetOffeneBuchungen();
+            return await CreateArbeitsrapporteFromList(liste);
+        }
+
         public async Task<string> CreateArbeitsrapporte(int jahr, int monatVon, int monatBis)
         {
             ClearTempFolder();
@@ -47,6 +54,11 @@ namespace ItreeNet.Services
             var von = new DateOnly(jahr, monatVon, 1);
             var bis = new DateOnly(jahr, monatBis, 1).AddMonths(1).AddDays(-1);
             var liste = await GetBuchungen(von, bis);
+            return await CreateArbeitsrapporteFromList(liste);
+        }
+
+        private async Task<string> CreateArbeitsrapporteFromList(IList<ReportBuchung> liste)
+        {
             if (!liste.Any())
             {
                 throw new Exception("Keine Daten gefunden");
@@ -504,6 +516,46 @@ namespace ItreeNet.Services
             }
 
             return proId == null ? liste : liste.Where(l => l.ProjektId == proId).ToList();
+        }
+
+        private async Task<IList<ReportBuchung>> GetOffeneBuchungen()
+        {
+            var liste = await _context.TBuchung
+                .AsNoTracking()
+                .Where(b => b.Abgerechnet == null && !b.Provisorisch)
+                .Join(_context.TVorgang, buc => buc.VorgangId, vor => vor.Id,
+                    (buc, vor) => new { buc, vor })
+                .Join(_context.TProjekt, vor => vor.vor.ProjektId, pro => pro.Id,
+                    (vor, pro) => new { vor.buc, vor.vor, pro })
+                .Join(_context.TKunde, pro => pro.pro.KundeId, kun => kun.Id,
+                    (pro, kun) => new { pro.buc, pro.vor, pro.pro, kun })
+                .Join(_context.TMitarbeiter, kun => kun.buc.MitarbeiterId, mit => mit.Id,
+                    (kun, mit) => new { kun.buc, kun.vor, kun.pro, kun.kun, mit })
+                .OrderBy(x => x.kun.Kundenname)
+                .ThenBy(x => x.mit.Nachname)
+                .ThenBy(x => x.mit.Vorname)
+                .ThenBy(x => x.pro.Nummer)
+                .ThenBy(x => x.buc.Datum)
+                .ThenBy(x => x.buc.ZeitVon)
+                .Select(n => new ReportBuchung
+                {
+                    KundeName = n.kun.Kundenname,
+                    MitarbeiterId = n.mit.Id,
+                    MitarbeiterName = $"{n.mit.Nachname} {n.mit.Vorname}",
+                    ProjektId = n.pro.Id,
+                    ProjektNummer = n.pro.Nummer,
+                    ProjektBezeichnung = n.pro.Bezeichnung,
+                    VorgangId = n.vor.Id,
+                    VorgangBezeichnung = n.vor.Bezeichnung,
+                    BuchungDatum = n.buc.Datum,
+                    BuchungVon = n.buc.ZeitVon,
+                    BuchungBis = n.buc.ZeitBis,
+                    BuchungText = n.buc.Buchungstext,
+                    BuchungZeit = n.buc.Zeit
+                })
+                .ToListAsync();
+
+            return liste;
         }
 
         /// <summary>

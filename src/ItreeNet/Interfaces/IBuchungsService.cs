@@ -13,6 +13,7 @@ namespace ItreeNet.Interfaces
         Task<List<Buchungstag>> InsertBuchungenAsync(Buchung booking, bool isWeek, DateOnly dateTo);
         Task<List<Buchung>> SucheBuchungAsync(Guid? selectedMitarbeiter, Guid? selectedTeam, Guid? selectedKunde,
             Guid? selectedProjekt, Guid? selectedAktivitaet, DateOnly? from, DateOnly? to);
+        Task SetAbgerechnetAsync();
     }
 }
 

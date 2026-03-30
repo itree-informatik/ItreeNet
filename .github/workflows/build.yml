@@ -144,6 +144,8 @@ jobs:
             --build-arg "ASSEMBLY_VERSION=${{ env.ASSEMBLY_VERSION }}" \
             --build-arg "ASSEMBLY_INFO_VERSION=${{ env.VERSION }}" \
             --build-arg "NUGET_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}" \
+            --build-arg "AUTOMAPPER_LICENSEKEY=${{ secrets.AUTOMAPPER_LICENSEKEY }}" \
+            --build-arg "GEMBOX_LICENSEKEY=${{ secrets.GEMBOX_LICENSEKEY }}" \
             -t "${{ env.ACR_REGISTRY }}/${{ env.DOCKER_REPO }}:${{ env.VERSION }}" \
             -t "${{ env.ACR_REGISTRY }}/${{ env.DOCKER_REPO }}:latest" \
             src/
@@ -207,9 +209,9 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Restart Azure Web App
         uses: azure/cli@v2

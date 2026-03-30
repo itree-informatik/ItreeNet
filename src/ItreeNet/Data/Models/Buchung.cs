@@ -11,6 +11,7 @@
         public decimal? Zeit { get; set; }
         public string Buchungstext { get; set; } = string.Empty;
         public bool Stunden { get; set; }
+        public DateTime? Abgerechnet { get; set; }
         public bool Provisorisch { get; set; }
         public Guid? ChangedBy { get; set; }
         public DateTime? ChangedOn { get; set; }
