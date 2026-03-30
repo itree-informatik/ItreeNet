@@ -499,8 +499,8 @@
                             <thead>
                                 <tr class="text-gray-800">
                                     <td style="width:1px;padding:0 4px;">
-                                        <MudCheckBox T="bool" Value="@(_selectedProvisorische.Count == _provisorischeBuchungen!.Count && _provisorischeBuchungen.Count > 0)"
-                                                     ValueChanged="@(v => ToggleAlleSelektiert(v))" Size="Size.Small" Dense="true" />
+                                        <input type="checkbox" checked="@(_selectedProvisorische.Count == _provisorischeBuchungen!.Count && _provisorischeBuchungen.Count > 0)"
+                                               @onchange="@(e => ToggleAlleSelektiert((bool)e.Value!))" />
                                     </td>
                                     <td>Datum</td>
                                     <td>Projekt / Vorgang</td>
@@ -514,7 +514,8 @@
                                 {
                                     <tr class="text-gray-800">
                                         <td style="width:1px;padding:0 4px;">
-                                            <MudCheckBox T="bool" Value="@_selectedProvisorische.Contains(buchung.Id)" ValueChanged="@(v => ToggleProvisorisch(buchung.Id, v))" Size="Size.Small" Dense="true" />
+                                            <input type="checkbox" checked="@_selectedProvisorische.Contains(buchung.Id)"
+                                                   @onchange="@(e => ToggleProvisorisch(buchung.Id, (bool)e.Value!))" />
                                         </td>
                                         <td>@buchung.Datum.ToString("dd.MM.yyyy")</td>
                                         <td>@buchung.ProjektName - @buchung.VorgangName</td>
