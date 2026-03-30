@@ -6,5 +6,6 @@ namespace ItreeNet.Data.Enums
         public const string Ferien = "Ferien";
         public const string Gleitzeit = "Gleitzeit";
         public const string Krank = "Krank";
+        public const string Abwesenheit = "Abwesenheit";
     }
 }

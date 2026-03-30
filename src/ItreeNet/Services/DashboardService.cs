@@ -355,7 +355,7 @@ namespace ItreeNet.Services
             return topBuchungen.OrderByDescending(b => b.Zeit).Take(5).ToList();
         }
 
-        public async Task<List<Buchung>> GetProvisorischeBuchungenAsync(Guid mitarbeiterId)
+        public async Task<List<Buchung>> GetProvisorischeBuchungenAsync()
         {
             await using var context = await _dbFactory.CreateDbContextAsync();
 
@@ -364,7 +364,7 @@ namespace ItreeNet.Services
                 .Include(b => b.Vorgang)
                     .ThenInclude(v => v.Projekt)
                         .ThenInclude(p => p.Kunde)
-                .Where(b => b.MitarbeiterId == mitarbeiterId && b.Provisorisch)
+                .Where(b => b.Provisorisch)
                 .OrderByDescending(b => b.Datum)
                 .ToListAsync();
 

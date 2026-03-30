@@ -25,7 +25,7 @@ namespace ItreeNet.Services
         {
             _context = context;
             _userService = userService;
-            var serialKey = config["LicenseKeys:GEMBOX_DOCUMENT_KEY"];
+            var serialKey = config["LicenseKeys:GEMBOX_DOCUMENT_KEY"]?.Trim();
             ComponentInfo.SetLicense(serialKey);
             _tempVerzeichnis = $"{Globals.FileStorePath}/Temp/{_userService.CurrentUser!.MitarbeiterId!.Value}/";
             _vorlagenVerzeichnis = $"{Globals.FileStorePath}/Vorlagen/";
@@ -40,10 +40,10 @@ namespace ItreeNet.Services
         /// <param name="monatBis"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public async Task<string> CreateArbeitsrapporteOffeneBuchungen()
+        public async Task<string> CreateArbeitsrapporteOffeneBuchungen(DateOnly bis)
         {
             ClearTempFolder();
-            var liste = await GetOffeneBuchungen();
+            var liste = await GetOffeneBuchungen(bis);
             return await CreateArbeitsrapporteFromList(liste);
         }
 
@@ -518,11 +518,11 @@ namespace ItreeNet.Services
             return proId == null ? liste : liste.Where(l => l.ProjektId == proId).ToList();
         }
 
-        private async Task<IList<ReportBuchung>> GetOffeneBuchungen()
+        private async Task<IList<ReportBuchung>> GetOffeneBuchungen(DateOnly bis)
         {
             var liste = await _context.TBuchung
                 .AsNoTracking()
-                .Where(b => b.Abgerechnet == null && !b.Provisorisch)
+                .Where(b => b.Abgerechnet == null && !b.Provisorisch && b.Datum <= bis)
                 .Join(_context.TVorgang, buc => buc.VorgangId, vor => vor.Id,
                     (buc, vor) => new { buc, vor })
                 .Join(_context.TProjekt, vor => vor.vor.ProjektId, pro => pro.Id,

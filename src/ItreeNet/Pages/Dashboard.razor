@@ -176,46 +176,43 @@
             </MudPaper>
         </MudItem>
 
-        <!-- Provisorische Buchungen (ColSpan=1 -> md=4) -->
+        <!-- Nächste Releases -->
         <MudItem xs="12" md="4">
             <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
                 <div class="row no-gutters align-items-center mb-2">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Offene Buchungen</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">Provisorische Buchungen</div>
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Release-Planung</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Nächste Releases</div>
                     </div>
                     <div class="col-auto">
-                        <i class="bi bi-pencil-square text-gray-300 fs-2"></i>
+                        <i class="bi bi-rocket-takeoff text-gray-300 fs-2"></i>
                     </div>
                 </div>
-                @if (_provisorischeBuchungen != null)
+                @if (_nextReleases != null)
                 {
-                    @if (_provisorischeBuchungen.Count == 0)
-                    {
-                        <div class="text-gray-600">Keine provisorischen Buchungen vorhanden.</div>
-                    }
-                    else
-                        {
-                        <table class="table table-sm table-borderless @_tableTheme table-hover table-striped align-middle">
-                            <thead>
+                    <table class="table table-sm table-borderless @_tableTheme align-middle">
+                        <thead>
+                            <tr class="text-gray-800">
+                                <td>Applikation</td>
+                                <td>Release</td>
+                                <td>Datum</td>
+                                <td>Tage</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var release in _nextReleases)
+                            {
+                                var tage = release.Datum.DayNumber - DateOnly.FromDateTime(DateTime.Today).DayNumber;
+                                var tageClass = tage <= 14 ? "text-danger" : tage <= 30 ? "text-warning" : "text-success";
                                 <tr class="text-gray-800">
-                                    <td>Datum</td>
-                                    <td>Projekt / Vorgang</td>
-                                    <td>Zeit</td>
+                                    <td><strong>@release.ApplikationName</strong></td>
+                                    <td>@release.Bezeichnung</td>
+                                    <td>@release.Datum.ToString("dd.MM.yyyy")</td>
+                                    <td class="@tageClass"><strong>@tage</strong></td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var buchung in _provisorischeBuchungen)
-                                {
-                                    <tr class="text-gray-800 pointer" @onclick="@(() => NavigationManager.NavigateTo($"/intern/zeiterfassung/buchungen"))">
-                                        <td>@buchung.Datum.ToString("dd.MM.yyyy")</td>
-                                        <td>@buchung.ProjektName - @buchung.Vorgang?.Bezeichnung</td>
-                                        <td>@buchung.Zeit h</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    }
+                            }
+                        </tbody>
+                    </table>
                 }
                 else
                 {
@@ -478,43 +475,48 @@
             </MudPaper>
         </MudItem>
 
-        <!-- Nächste Releases -->
-        <MudItem xs="12" md="4">
+        <!-- Provisorische Buchungen (ColSpan=1 -> md=8) -->
+        <MudItem xs="12" md="8">
             <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
                 <div class="row no-gutters align-items-center mb-2">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Release-Planung</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">Nächste Releases</div>
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Offene Buchungen</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Provisorische Buchungen</div>
                     </div>
                     <div class="col-auto">
-                        <i class="bi bi-rocket-takeoff text-gray-300 fs-2"></i>
+                        <i class="bi bi-pencil-square text-gray-300 fs-2"></i>
                     </div>
                 </div>
-                @if (_nextReleases != null)
+                @if (_provisorischeBuchungen != null)
                 {
-                    <table class="table table-sm table-borderless @_tableTheme align-middle">
-                        <thead>
-                            <tr class="text-gray-800">
-                                <td>Applikation</td>
-                                <td>Release</td>
-                                <td>Datum</td>
-                                <td>Tage</td>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var release in _nextReleases)
-                            {
-                                var tage = release.Datum.DayNumber - DateOnly.FromDateTime(DateTime.Today).DayNumber;
-                                var tageClass = tage <= 14 ? "text-danger" : tage <= 30 ? "text-warning" : "text-success";
+                    @if (_provisorischeBuchungen.Count == 0)
+                    {
+                        <div class="text-gray-600">Keine provisorischen Buchungen vorhanden.</div>
+                    }
+                    else
+                    {
+                        <table class="table table-sm table-borderless @_tableTheme table-hover table-striped align-middle">
+                            <thead>
                                 <tr class="text-gray-800">
-                                    <td><strong>@release.ApplikationName</strong></td>
-                                    <td>@release.Bezeichnung</td>
-                                    <td>@release.Datum.ToString("dd.MM.yyyy")</td>
-                                    <td class="@tageClass"><strong>@tage</strong></td>
+                                    <td>Datum</td>
+                                    <td>Projekt / Vorgang</td>
+                                    <td>Zeit</td>
+                                    <td>Mitarbeiter</td>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @foreach (var buchung in _provisorischeBuchungen)
+                                {
+                                    <tr class="text-gray-800 pointer" @onclick="@(() => NavigationManager.NavigateTo($"/intern/zeiterfassung/buchungen"))">
+                                        <td>@buchung.Datum.ToString("dd.MM.yyyy")</td>
+                                        <td>@buchung.ProjektName - @buchung.Vorgang?.Bezeichnung</td>
+                                        <td>@buchung.Zeit h</td>
+                                        <td>@buchung.Mitarbeiter?.Fullname</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
                 }
                 else
                 {
@@ -898,7 +900,7 @@
         var tAbschluss = DashboardService.IsAbschlussDoneAsync(_mitarbeiterId);
 
         var tTop = DashboardService.TopBuchungenAsync(_mitarbeiterId);
-        var tProv = DashboardService.GetProvisorischeBuchungenAsync(_mitarbeiterId);
+        var tProv = DashboardService.GetProvisorischeBuchungenAsync();
         var tMitarb = DashboardService.GetDashboardMitarbeiterAsync();
         var tProj = DashboardService.GetProjectBookingsAsync();
         var tPipes = DashboardService.GetPipelineRunsAsync();

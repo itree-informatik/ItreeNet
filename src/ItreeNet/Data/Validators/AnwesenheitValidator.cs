@@ -6,7 +6,7 @@ namespace ItreeNet.Data.Validators
 {
     public class AnwesenheitValidator : AbstractValidator<Anwesenheit>
     {
-        private static readonly string[] GueltigeTypen = [EnumAnwesenheitTyp.Anwesenheit, EnumAnwesenheitTyp.Ferien, EnumAnwesenheitTyp.Gleitzeit, EnumAnwesenheitTyp.Krank];
+        private static readonly string[] GueltigeTypen = [EnumAnwesenheitTyp.Anwesenheit, EnumAnwesenheitTyp.Ferien, EnumAnwesenheitTyp.Gleitzeit, EnumAnwesenheitTyp.Krank, EnumAnwesenheitTyp.Abwesenheit];
 
         public AnwesenheitValidator()
         {
@@ -59,6 +59,11 @@ namespace ItreeNet.Data.Validators
             });
 
             RuleFor(a => a.Notiz).MaximumLength(500).WithMessage("Notiz darf nicht länger als 500 Zeichen sein.");
+
+            When(a => a.Typ == EnumAnwesenheitTyp.Abwesenheit, () =>
+            {
+                RuleFor(x => x.Notiz).NotEmpty().WithMessage("Bitte eine Notiz für Abwesenheit erfassen.");
+            });
 
             When(a => a.Typ == EnumAnwesenheitTyp.Ferien, () =>
             {

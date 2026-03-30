@@ -15,12 +15,13 @@
                         <MudSelectItem Value="@EnumAnwesenheitTyp.Ferien">Ferien</MudSelectItem>
                         <MudSelectItem Value="@EnumAnwesenheitTyp.Gleitzeit">Gleitzeit</MudSelectItem>
                         <MudSelectItem Value="@EnumAnwesenheitTyp.Krank">Krank</MudSelectItem>
+                        <MudSelectItem Value="@EnumAnwesenheitTyp.Abwesenheit">Abwesenheit</MudSelectItem>
                     </MudSelect>
                     <ValidationMessage For="(() => _model.Typ)" />
                 </FormField>
 
                 <FormField Label="Stunden">
-                    <MudNumericField @bind-Value="@_model.Zeit" Format="N2" />
+                    <MudNumericField @bind-Value="@_model.Zeit" Format="N2" Step="0.25M" />
                     <ValidationMessage For="(() => _model.Zeit)" />
                 </FormField>
 
@@ -41,7 +42,7 @@
                     </FormField>
                 }
 
-                <FormField Label="Notiz">
+                <FormField Label="@(_model.Typ == EnumAnwesenheitTyp.Abwesenheit ? "Notiz *" : "Notiz")">
                     <MudTextField @bind-Value="@_model.Notiz" Lines="2" />
                     <ValidationMessage For="(() => _model.Notiz)" />
                 </FormField>

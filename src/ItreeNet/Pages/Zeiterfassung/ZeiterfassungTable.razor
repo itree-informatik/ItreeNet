@@ -104,6 +104,22 @@ else
                                 <span style="color: dodgerblue;">@GetAnwesenheitStunden(daily.Date).ToString("N2") h</span>
                             </div>
                             @{
+                                var anwesenheitRecord = GetAnwesenheitRecord(daily.Date);
+                                if (anwesenheitRecord != null && anwesenheitRecord.Typ != EnumAnwesenheitTyp.Anwesenheit)
+                                {
+                                    <div class="pl-2" style="color: dodgerblue;">
+                                        @if (anwesenheitRecord.Typ == EnumAnwesenheitTyp.Abwesenheit)
+                                        {
+                                            <span>@anwesenheitRecord.Notiz</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@anwesenheitRecord.Typ</span>
+                                        }
+                                    </div>
+                                }
+                            }
+                            @{
                                 var details = daily.Details;
                                 if (details != null && details.Any(v => v.Vorgang != null && v.Vorgang.Gleitzeit))
                                 {
@@ -279,6 +295,7 @@ else
 
     // Anwesenheit
     private Dictionary<DateOnly, decimal> _anwesenheitMap = new();
+    private Dictionary<DateOnly, Anwesenheit> _anwesenheitRecordMap = new();
     private bool _showAnwesenheitWindow;
     private DateOnly _anwesenheitDatum;
     private DateOnly _datePickerValue = GetWeekToDisplay(DateOnly.FromDateTime(DateTime.Today));
@@ -427,11 +444,19 @@ else
         _anwesenheitMap = records
             .GroupBy(a => a.Datum)
             .ToDictionary(g => g.Key, g => g.Sum(a => a.Zeit ?? 0m));
+        _anwesenheitRecordMap = records
+            .GroupBy(a => a.Datum)
+            .ToDictionary(g => g.Key, g => g.First());
     }
 
     private decimal GetAnwesenheitStunden(DateOnly date)
     {
         return _anwesenheitMap.TryGetValue(date, out var stunden) ? stunden : 0m;
+    }
+
+    private Anwesenheit? GetAnwesenheitRecord(DateOnly date)
+    {
+        return _anwesenheitRecordMap.TryGetValue(date, out var record) ? record : null;
     }
 
     private void OpenAnwesenheitWindow(DateOnly date)

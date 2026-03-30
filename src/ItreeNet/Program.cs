@@ -41,7 +41,7 @@ if (bosses == null)
 
 Globals.BossList = bosses;
 Globals.FileStorePath = builder.Configuration.GetValue<string>("File:Store");
-var autoMapperLicenseKey = builder.Configuration.GetValue<string>("LicenseKeys:AutoMapper");
+var autoMapperLicenseKey = builder.Configuration.GetValue<string>("LicenseKeys:AutoMapper")?.Trim();
 
 var connectionString = builder.Configuration.GetConnectionString("APP");
 

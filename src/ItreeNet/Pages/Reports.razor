@@ -406,12 +406,16 @@ else
 
     private async Task ErstelleArbeitsrapporteOffen()
     {
+        if (_abrechnungsDatum == null)
+            return;
+
         _isLoadingArbeitsrapport = true;
         await InvokeAsync(StateHasChanged);
 
         try
         {
-            var filePath = await DokumentService.CreateArbeitsrapporteOffeneBuchungen();
+            var bis = DateOnly.FromDateTime(_abrechnungsDatum.Value);
+            var filePath = await DokumentService.CreateArbeitsrapporteOffeneBuchungen(bis);
             await DownloadFile(filePath);
         }
         catch (Exception ex)
