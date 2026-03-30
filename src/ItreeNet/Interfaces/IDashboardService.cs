@@ -11,7 +11,7 @@ namespace ItreeNet.Interfaces
         Task<bool> IsAbschlussDoneAsync(Guid mitarbeiterId);
         Task<List<DashboardMitarbeiter>> GetDashboardMitarbeiterAsync();
         Task<List<Buchung>> TopBuchungenAsync(Guid mitarbeiterId);
-        Task<List<Buchung>> GetProvisorischeBuchungenAsync();
+        Task<List<ProvisorischeBuchung>> GetProvisorischeBuchungenAsync();
         Task<List<DashboardProjekt>> GetProjectBookingsAsync();
         Task<List<PipelineRuns>> GetPipelineRunsAsync();
         Task<PerformanceList> GetProductivity(Guid mitarbeiterId, int jahr = 0);

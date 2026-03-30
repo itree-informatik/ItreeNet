@@ -355,31 +355,25 @@ namespace ItreeNet.Services
             return topBuchungen.OrderByDescending(b => b.Zeit).Take(5).ToList();
         }
 
-        public async Task<List<Buchung>> GetProvisorischeBuchungenAsync()
+        public async Task<List<ProvisorischeBuchung>> GetProvisorischeBuchungenAsync()
         {
             await using var context = await _dbFactory.CreateDbContextAsync();
 
-            var tBuchungen = await context.TBuchung
+            return await context.TBuchung
                 .AsNoTracking()
-                .Include(b => b.Vorgang)
-                    .ThenInclude(v => v.Projekt)
-                        .ThenInclude(p => p.Kunde)
                 .Where(b => b.Provisorisch)
                 .OrderByDescending(b => b.Datum)
+                .Select(b => new ProvisorischeBuchung
+                {
+                    Id = b.Id,
+                    Datum = b.Datum,
+                    Zeit = b.Zeit,
+                    Buchungstext = b.Buchungstext,
+                    ProjektName = b.Vorgang!.Projekt!.Bezeichnung,
+                    VorgangName = b.Vorgang.Bezeichnung,
+                    MitarbeiterName = b.Mitarbeiter!.Vorname + " " + b.Mitarbeiter.Nachname
+                })
                 .ToListAsync();
-
-            return tBuchungen.Select(b => new Buchung
-            {
-                Id = b.Id,
-                VorgangId = b.VorgangId,
-                Datum = b.Datum,
-                Zeit = b.Zeit,
-                Buchungstext = b.Buchungstext,
-                Provisorisch = true,
-                KundenName = b.Vorgang?.Projekt?.Kunde?.Kundenname,
-                ProjektName = b.Vorgang?.Projekt?.Bezeichnung,
-                Vorgang = _mapper.Map<Vorgang>(b.Vorgang)
-            }).ToList();
         }
 
         public async Task<List<DashboardProjekt>> GetProjectBookingsAsync()

@@ -526,5 +526,20 @@ namespace ItreeNet.Services
 
             await context.SaveChangesAsync();
         }
+
+        public async Task SetNichtProvisorischAsync(List<Guid> buchungIds)
+        {
+            await using var context = await _dbFactory.CreateDbContextAsync();
+            var buchungen = await context.TBuchung
+                .Where(b => buchungIds.Contains(b.Id) && b.Provisorisch)
+                .ToListAsync();
+
+            foreach (var buchung in buchungen)
+            {
+                buchung.Provisorisch = false;
+            }
+
+            await context.SaveChangesAsync();
+        }
     }
 }

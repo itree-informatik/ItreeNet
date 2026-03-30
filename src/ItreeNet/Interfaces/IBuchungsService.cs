@@ -14,6 +14,7 @@ namespace ItreeNet.Interfaces
         Task<List<Buchung>> SucheBuchungAsync(Guid? selectedMitarbeiter, Guid? selectedTeam, Guid? selectedKunde,
             Guid? selectedProjekt, Guid? selectedAktivitaet, DateOnly? from, DateOnly? to);
         Task SetAbgerechnetAsync();
+        Task SetNichtProvisorischAsync(List<Guid> buchungIds);
     }
 }
 

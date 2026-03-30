@@ -498,8 +498,13 @@
                         <table class="table table-sm table-borderless @_tableTheme table-hover table-striped align-middle">
                             <thead>
                                 <tr class="text-gray-800">
+                                    <td style="width:1px;padding:0 4px;">
+                                        <MudCheckBox T="bool" Value="@(_selectedProvisorische.Count == _provisorischeBuchungen!.Count && _provisorischeBuchungen.Count > 0)"
+                                                     ValueChanged="@(v => ToggleAlleSelektiert(v))" Size="Size.Small" Dense="true" />
+                                    </td>
                                     <td>Datum</td>
                                     <td>Projekt / Vorgang</td>
+                                    <td>Buchungstext</td>
                                     <td>Zeit</td>
                                     <td>Mitarbeiter</td>
                                 </tr>
@@ -507,15 +512,27 @@
                             <tbody>
                                 @foreach (var buchung in _provisorischeBuchungen)
                                 {
-                                    <tr class="text-gray-800 pointer" @onclick="@(() => NavigationManager.NavigateTo($"/intern/zeiterfassung/buchungen"))">
+                                    <tr class="text-gray-800">
+                                        <td style="width:1px;padding:0 4px;">
+                                            <MudCheckBox T="bool" Value="@_selectedProvisorische.Contains(buchung.Id)" ValueChanged="@(v => ToggleProvisorisch(buchung.Id, v))" Size="Size.Small" Dense="true" />
+                                        </td>
                                         <td>@buchung.Datum.ToString("dd.MM.yyyy")</td>
-                                        <td>@buchung.ProjektName - @buchung.Vorgang?.Bezeichnung</td>
+                                        <td>@buchung.ProjektName - @buchung.VorgangName</td>
+                                        <td>@buchung.Buchungstext</td>
                                         <td>@buchung.Zeit h</td>
-                                        <td>@buchung.Mitarbeiter?.Fullname</td>
+                                        <td>@buchung.MitarbeiterName</td>
                                     </tr>
                                 }
                             </tbody>
                         </table>
+                        @if (_selectedProvisorische.Count > 0)
+                        {
+                            <div class="d-flex justify-content-end">
+                                <MudButton StartIcon="@Icons.Material.Filled.CheckCircle" Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="@ProvisorischeFreigeben">
+                                    @_selectedProvisorische.Count Buchung(en) freigeben
+                                </MudButton>
+                            </div>
+                        }
                     }
                 }
                 else
@@ -832,7 +849,8 @@
     private bool _isMonatsAbschlussDone;
     private List<Buchung>? _topBuchungen;
     private decimal? _maxBuchungsStunden;
-    private List<Buchung>? _provisorischeBuchungen;
+    private List<ProvisorischeBuchung>? _provisorischeBuchungen;
+    private HashSet<Guid> _selectedProvisorische = new();
     private List<DashboardProjekt>? _dashboardProjekts;
     private List<DashboardMitarbeiter>? _dashboardMitarbeiter;
     private DashboardAktuellesSaldo? _dashboardAktuellesSaldo;
@@ -1119,5 +1137,27 @@
     private async Task CopyToClipboard()
     {
         await JsRuntime.InvokeVoidAsync("CopyToClipboard", _detailText);
+    }
+
+    private void ToggleProvisorisch(Guid id, bool selected)
+    {
+        if (selected) _selectedProvisorische.Add(id);
+        else _selectedProvisorische.Remove(id);
+    }
+
+    private void ToggleAlleSelektiert(bool selected)
+    {
+        if (selected && _provisorischeBuchungen != null)
+            _selectedProvisorische = _provisorischeBuchungen.Select(b => b.Id).ToHashSet();
+        else
+            _selectedProvisorische.Clear();
+    }
+
+    private async Task ProvisorischeFreigeben()
+    {
+        await BuchungsService.SetNichtProvisorischAsync(_selectedProvisorische.ToList());
+        _selectedProvisorische.Clear();
+        _provisorischeBuchungen = await DashboardService.GetProvisorischeBuchungenAsync();
+        StateHasChanged();
     }
 }
