@@ -9,8 +9,8 @@
         public string? Email { get; set; }
         public DateOnly Eintritt { get; set; }
         public DateOnly? Austritt { get; set; }
-        public bool Intern { get; set; } 
-        public bool Aktiv { get; set; }
+        public bool Intern { get; set; } = true;
+        public bool Aktiv { get; set; } = true;
 
         public string Fullname => $"{Vorname} {Nachname}";
         

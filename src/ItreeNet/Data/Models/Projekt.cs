@@ -6,7 +6,7 @@
         public Guid KundeId { get; set; }
         public string? Nummer { get; set; }
         public string? Bezeichnung { get; set; }
-        public bool Aktiv { get; set; }
+        public bool Aktiv { get; set; } = true;
         public decimal Gesamtkosten { get; set; }
         public bool Pauschal { get; set; }
         public string? Vertragsdauer { get; set; }

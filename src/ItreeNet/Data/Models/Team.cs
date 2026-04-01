@@ -6,6 +6,6 @@
         public string? Bezeichnung { get; set; }
         public string? NaturalId { get; set; }
         public int? Sort { get; set; }
-        public bool Aktiv { get; set; }
+        public bool Aktiv { get; set; } = true;
     }
 }

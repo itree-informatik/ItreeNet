@@ -143,13 +143,6 @@ public partial class ZeiterfassungContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK_FerienArbeitspensum");
 
             entity.Property(e => e.Id).ValueGeneratedNever();
-            entity.Property(e => e.Arbeitspensum).HasDefaultValue(100m);
-            entity.Property(e => e.Dienstag).HasDefaultValue(true);
-            entity.Property(e => e.Donnerstag).HasDefaultValue(true);
-            entity.Property(e => e.FerienProJahr).HasDefaultValue(25m);
-            entity.Property(e => e.Freitag).HasDefaultValue(true);
-            entity.Property(e => e.Mittwoch).HasDefaultValue(true);
-            entity.Property(e => e.Montag).HasDefaultValue(true);
 
             entity.HasOne(d => d.Mitarbeiter).WithMany(p => p.TFerienArbeitspensum)
                 .OnDelete(DeleteBehavior.ClientSetNull)
@@ -186,7 +179,6 @@ public partial class ZeiterfassungContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK_Kunde");
 
             entity.Property(e => e.Id).ValueGeneratedNever();
-            entity.Property(e => e.Aktiv).HasDefaultValue(true);
 
             entity.HasOne(d => d.Team).WithMany(p => p.TKunde).HasConstraintName("FK_T_Kunde_T_Team");
         });
@@ -196,8 +188,6 @@ public partial class ZeiterfassungContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK_Mitarbeiter_1");
 
             entity.Property(e => e.Id).ValueGeneratedNever();
-            entity.Property(e => e.Aktiv).HasDefaultValue(true);
-            entity.Property(e => e.Intern).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<TMitarbeiterSaldo>(entity =>
@@ -254,7 +244,6 @@ public partial class ZeiterfassungContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK_Projekt_1");
 
             entity.Property(e => e.Id).ValueGeneratedNever();
-            entity.Property(e => e.Aktiv).HasDefaultValue(true);
 
             entity.HasOne(d => d.Kunde).WithMany(p => p.TProjekt)
                 .OnDelete(DeleteBehavior.ClientSetNull)
@@ -289,7 +278,6 @@ public partial class ZeiterfassungContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK_Team");
 
             entity.Property(e => e.Id).ValueGeneratedNever();
-            entity.Property(e => e.Aktiv).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<TVorgang>(entity =>
@@ -297,7 +285,6 @@ public partial class ZeiterfassungContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK_Vorgang_1");
 
             entity.Property(e => e.Id).ValueGeneratedNever();
-            entity.Property(e => e.Aktiv).HasDefaultValue(true);
 
             entity.HasOne(d => d.Projekt).WithMany(p => p.TVorgang)
                 .OnDelete(DeleteBehavior.ClientSetNull)

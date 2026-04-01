@@ -5,7 +5,7 @@
         public Guid Id { get; set; }
         public Guid ProjektId { get; set; }
         public string Bezeichnung { get; set; } = null!;
-        public bool Aktiv { get; set; }
+        public bool Aktiv { get; set; } = true;
         public bool Ferien { get; set; }
         public bool Gleitzeit { get; set; }
         public decimal Stundenansatz { get; set; }
