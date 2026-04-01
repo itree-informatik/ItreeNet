@@ -127,15 +127,35 @@ namespace ItreeNet.Services
             {
                 neuesJahr = ferienSaldoModel.Jahr < DateTime.Now.Year;
                 saldo = ferienSaldoModel.FerienSaldo;
-                var ferienAktivitaet = await context.TVorgang.AsNoTracking().SingleOrDefaultAsync(v => v.Ferien)
-                    ?? throw new InvalidDataException("Kein Ferien-Vorgang konfiguriert");
 
                 var date1 = new DateOnly(ferienSaldoModel.Jahr, ferienSaldoModel.Monat,
                     DateTime.DaysInMonth(ferienSaldoModel.Jahr, ferienSaldoModel.Monat));
-                
+
+                // Arbeitszeit und Arbeitspensum laden (für Stunden → Tage Umrechnung)
+                var arbeitszeitModel = await context.TArbeitszeit
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync(a => a.Jahr == DateTime.Now.Year && a.Monat == DateTime.Now.Month)
+                    ?? throw new InvalidDataException($"Keine Arbeitszeit für {DateTime.Now.Month}/{DateTime.Now.Year} konfiguriert");
+
+                var arbeitszeit = arbeitszeitModel.Tagesarbeitszeit;
+
+                var arbeitspensum = await context.TFerienArbeitspensum
+                    .AsNoTracking()
+                    .Where(a => a.MitarbeiterId == mitarbeiterId && a.GueltigAb <= DateOnly.FromDateTime(DateTime.Today))
+                    .OrderByDescending(a => a.GueltigAb).FirstOrDefaultAsync()
+                    ?? throw new InvalidDataException($"Kein Arbeitspensum für Mitarbeiter {mitarbeiterId} gefunden");
+
+                if (arbeitspensum.Arbeitspensum != 100 && arbeitspensum.Montag && arbeitspensum.Dienstag && arbeitspensum.Mittwoch && arbeitspensum.Donnerstag && arbeitspensum.Freitag)
+                {
+                    arbeitszeit *= (arbeitspensum.Arbeitspensum / 100);
+                }
+
+                // 1) Ferien über Buchungen (Ferien-Vorgang)
+                var ferienAktivitaet = await context.TVorgang.AsNoTracking().SingleOrDefaultAsync(v => v.Ferien)
+                    ?? throw new InvalidDataException("Kein Ferien-Vorgang konfiguriert");
+
                 var buchungen = await context.TBuchung.AsNoTracking()
                     .Where(b => b.Datum > date1
-                                //&& b.Datum.Date <= date2
                                 && b.VorgangId == ferienAktivitaet.Id
                                 && b.MitarbeiterId == mitarbeiterId)
                     .ToListAsync();
@@ -143,28 +163,22 @@ namespace ItreeNet.Services
                 if (buchungen.Count > 0)
                 {
                     var buchungenSum = buchungen.Sum(b => b.Zeit);
-
-                    var arbeitszeitModel = await context.TArbeitszeit
-                        .AsNoTracking()
-                        .SingleOrDefaultAsync(a => a.Jahr == DateTime.Now.Year && a.Monat == DateTime.Now.Month)
-                        ?? throw new InvalidDataException($"Keine Arbeitszeit für {DateTime.Now.Month}/{DateTime.Now.Year} konfiguriert");
-
-                    var arbeitszeit = arbeitszeitModel.Tagesarbeitszeit;
-
-                    var arbeitspensum = await context.TFerienArbeitspensum
-                        .AsNoTracking()
-                        .Where(a => a.MitarbeiterId == mitarbeiterId && a.GueltigAb <= DateOnly.FromDateTime(DateTime.Today))
-                        .OrderByDescending(a => a.GueltigAb).FirstOrDefaultAsync()
-                        ?? throw new InvalidDataException($"Kein Arbeitspensum für Mitarbeiter {mitarbeiterId} gefunden");
-
-                    if (arbeitspensum.Arbeitspensum != 100 && arbeitspensum.Montag && arbeitspensum.Dienstag && arbeitspensum.Mittwoch && arbeitspensum.Donnerstag && arbeitspensum.Freitag)
-                    {
-                        arbeitszeit *= (arbeitspensum.Arbeitspensum / 100);
-                    }
-
                     buchungenSum /= arbeitszeit;
-
                     saldo -= buchungenSum ?? decimal.Zero;
+                }
+
+                // 2) Ferien über Anwesenheit (Typ = Ferien)
+                var ferienAnwesenheiten = await context.TAnwesenheit.AsNoTracking()
+                    .Where(a => a.Datum > date1
+                                && a.Typ == EnumAnwesenheitTyp.Ferien
+                                && a.MitarbeiterId == mitarbeiterId)
+                    .ToListAsync();
+
+                if (ferienAnwesenheiten.Count > 0)
+                {
+                    var anwesenheitSum = ferienAnwesenheiten.Sum(a => a.Zeit) ?? decimal.Zero;
+                    anwesenheitSum /= arbeitszeit;
+                    saldo -= anwesenheitSum;
                 }
             }
 

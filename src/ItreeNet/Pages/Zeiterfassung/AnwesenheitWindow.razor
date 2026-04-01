@@ -3,74 +3,135 @@
 @if (_visible)
 {
     <MudOverlay Visible="true" DarkBackground="true" ZIndex="1300">
-        <MudPaper Class="pa-4" Style="width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;">
+        <MudPaper Class="pa-4" Style="width:650px;max-width:95vw;max-height:90vh;overflow-y:auto;">
             <MudText Typo="Typo.h6" Class="mb-3">Anwesenheit — @Datum.ToString("dd.MM.yyyy")</MudText>
 
-            <EditForm Model="@_model" OnValidSubmit="@Save">
-                <ItreeFluentValidationValidator Validator="@(new AnwesenheitValidator())" DisableAssemblyScanning="true" StrictMode="false" />
+            @if (_records.Count > 0)
+            {
+                <table class="table table-striped @_tableTheme table-sm mb-3">
+                    <thead>
+                        <tr>
+                            <th>Typ</th>
+                            <th>Stunden</th>
+                            <th>Von</th>
+                            <th>Bis</th>
+                            <th>Notiz</th>
+                            <th style="width: 80px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var record in _records)
+                        {
+                            <tr>
+                                <td>@record.Typ</td>
+                                <td>@record.Zeit?.ToString("N2")</td>
+                                <td>@record.ZeitVon?.ToString("HH:mm")</td>
+                                <td>@record.ZeitBis?.ToString("HH:mm")</td>
+                                <td>@record.Notiz</td>
+                                <td>
+                                    <div class="d-flex" style="gap: 2px;">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => EditRecord(record))" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => DeleteRecord(record))" />
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
 
-                <FormField Label="Typ">
-                    <MudSelect @bind-Value="@_model.Typ" Style="width:100%;">
-                        <MudSelectItem Value="@EnumAnwesenheitTyp.Anwesenheit">Anwesenheit</MudSelectItem>
-                        <MudSelectItem Value="@EnumAnwesenheitTyp.Ferien">Ferien</MudSelectItem>
-                        <MudSelectItem Value="@EnumAnwesenheitTyp.Gleitzeit">Gleitzeit</MudSelectItem>
-                        <MudSelectItem Value="@EnumAnwesenheitTyp.Krank">Krank</MudSelectItem>
-                        <MudSelectItem Value="@EnumAnwesenheitTyp.Abwesenheit">Abwesenheit</MudSelectItem>
-                    </MudSelect>
-                    <ValidationMessage For="(() => _model.Typ)" />
-                </FormField>
+            @if (_showForm)
+            {
+                <MudDivider Class="mb-3" />
 
-                <FormField Label="Stunden">
-                    <MudNumericField @bind-Value="@_model.Zeit" Format="N2" Step="0.25M" />
-                    <ValidationMessage For="(() => _model.Zeit)" />
-                </FormField>
+                <EditForm Model="@_model" OnValidSubmit="@Save">
+                    <ItreeFluentValidationValidator Validator="@(new AnwesenheitValidator())" DisableAssemblyScanning="true" StrictMode="false" />
 
-                <FormField Label="Zeit von">
-                    <MudTimePicker @bind-Time="@ZeitVonAsTimeSpan" MinuteSelectionStep="15" />
-                    <ValidationMessage For="(() => _model.ZeitVon)" />
-                </FormField>
+                    <div class="d-flex align-items-center mb-2" style="gap: 12px;">
+                        <MudText Style="min-width:80px;">Typ</MudText>
+                        <div style="flex:1;">
+                            <MudSelect @bind-Value="@_model.Typ" Style="width:100%;">
+                                <MudSelectItem Value="@EnumAnwesenheitTyp.Anwesenheit">Anwesenheit</MudSelectItem>
+                                <MudSelectItem Value="@EnumAnwesenheitTyp.Ferien">Ferien</MudSelectItem>
+                                <MudSelectItem Value="@EnumAnwesenheitTyp.Gleitzeit">Gleitzeit</MudSelectItem>
+                                <MudSelectItem Value="@EnumAnwesenheitTyp.Krank">Krank</MudSelectItem>
+                                <MudSelectItem Value="@EnumAnwesenheitTyp.Abwesenheit">Abwesenheit</MudSelectItem>
+                            </MudSelect>
+                            <ValidationMessage For="(() => _model.Typ)" />
+                        </div>
+                    </div>
 
-                <FormField Label="Zeit bis">
-                    <MudTimePicker @bind-Time="@ZeitBisAsTimeSpan" MinuteSelectionStep="15" />
-                    <ValidationMessage For="(() => _model.ZeitBis)" />
-                </FormField>
+                    <div class="d-flex align-items-center mb-2" style="gap: 12px;">
+                        <MudText Style="min-width:80px;">Stunden</MudText>
+                        <div style="flex:1;">
+                            <MudNumericField @bind-Value="@_model.Zeit" Format="N2" Step="0.25M" />
+                            <ValidationMessage For="(() => _model.Zeit)" />
+                        </div>
+                    </div>
 
-                @if (_model.ZeitVon != null && _model.ZeitBis != null)
-                {
-                    <FormField Label="Pause (h)">
-                        <MudNumericField Value="@_pause" ValueChanged="@((decimal val) => OnPauseChanged(val))" Format="N2" Min="0" Step="0.25M" />
-                    </FormField>
-                }
+                    <div class="d-flex align-items-center mb-2" style="gap: 12px;">
+                        <MudText Style="min-width:80px;">Zeit von</MudText>
+                        <div style="flex:1;">
+                            <MudTimePicker @bind-Time="@ZeitVonAsTimeSpan" MinuteSelectionStep="15" />
+                            <ValidationMessage For="(() => _model.ZeitVon)" />
+                        </div>
+                    </div>
 
-                <FormField Label="@(_model.Typ == EnumAnwesenheitTyp.Abwesenheit ? "Notiz *" : "Notiz")">
-                    <MudTextField @bind-Value="@_model.Notiz" Lines="2" />
-                    <ValidationMessage For="(() => _model.Notiz)" />
-                </FormField>
+                    <div class="d-flex align-items-center mb-2" style="gap: 12px;">
+                        <MudText Style="min-width:80px;">Zeit bis</MudText>
+                        <div style="flex:1;">
+                            <MudTimePicker @bind-Time="@ZeitBisAsTimeSpan" MinuteSelectionStep="15" />
+                            <ValidationMessage For="(() => _model.ZeitBis)" />
+                        </div>
+                    </div>
 
-                <ItreeButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
-                    @if (_model.Id != Guid.Empty)
+                    @if (_model.ZeitVon != null && _model.ZeitBis != null)
                     {
-                        <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Delete" Variant="Variant.Filled" Color="Color.Primary" OnClick="@Delete">Löschen</MudButton>
+                        <div class="d-flex align-items-center mb-2" style="gap: 12px;">
+                            <MudText Style="min-width:80px;">Pause (h)</MudText>
+                            <div style="flex:1;">
+                                <MudNumericField Value="@_pause" ValueChanged="@((decimal val) => OnPauseChanged(val))" Format="N2" Min="0" Step="0.25M" />
+                            </div>
+                        </div>
                     }
-                    <MudButton ButtonType="ButtonType.Submit" StartIcon="@Icons.Material.Filled.Save" Variant="Variant.Filled" Color="Color.Primary">Speichern</MudButton>
-                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Cancel" Variant="Variant.Filled" Color="Color.Primary" OnClick="@Close">Abbrechen</MudButton>
-                </ItreeButtonGroup>
-            </EditForm>
+
+                    <FormField Label="@(_model.Typ == EnumAnwesenheitTyp.Abwesenheit ? "Notiz *" : "Notiz")">
+                        <MudTextField @bind-Value="@_model.Notiz" Lines="2" />
+                        <ValidationMessage For="(() => _model.Notiz)" />
+                    </FormField>
+
+                    <ItreeButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
+                        <MudButton ButtonType="ButtonType.Submit" StartIcon="@Icons.Material.Filled.Save" Variant="Variant.Filled" Color="Color.Primary">Speichern</MudButton>
+                        <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Cancel" Variant="Variant.Filled" Color="Color.Primary" OnClick="@CancelForm">Abbrechen</MudButton>
+                    </ItreeButtonGroup>
+                </EditForm>
+            }
+            else
+            {
+                <div class="d-flex justify-content-between">
+                    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary" OnClick="@AddNew">Neuer Eintrag</MudButton>
+                    <MudButton StartIcon="@Icons.Material.Filled.Cancel" Variant="Variant.Filled" Color="Color.Primary" OnClick="@Close">Schliessen</MudButton>
+                </div>
+            }
         </MudPaper>
     </MudOverlay>
 }
 
 @code {
+    [CascadingParameter] public Benutzer? Benutzer { get; set; }
     [Parameter] public DateOnly Datum { get; set; }
     [Parameter] public Guid MitarbeiterId { get; set; }
     [Parameter] public EventCallback OnChanged { get; set; }
     [Parameter] public EventCallback OnClosed { get; set; }
 
+    private List<Anwesenheit> _records = new();
     private Anwesenheit _model = new();
     private bool _visible;
+    private bool _showForm;
     private DateOnly _loadedDatum;
     private Guid _loadedMitarbeiterId;
     private decimal _pause = 0;
+    private string _tableTheme = "table-light";
 
     private TimeSpan? ZeitVonAsTimeSpan
     {
@@ -114,30 +175,65 @@
 
         _loadedDatum = Datum;
         _loadedMitarbeiterId = MitarbeiterId;
-        _pause = 0;
 
-        var records = await AnwesenheitService.GetByMitarbeiterAsync(MitarbeiterId, Datum, Datum);
-        if (records.Count > 0)
+        if (Benutzer?.ThemeMode != null)
         {
-            _model = records.First();
-            if (_model.ZeitVon != null && _model.ZeitBis != null && _model.Zeit != null)
-            {
-                var grossHours = (_model.ZeitBis.Value - _model.ZeitVon.Value).TotalHours;
-                _pause = Convert.ToDecimal((grossHours - (double)_model.Zeit).ToString("N2"));
-            }
+            _tableTheme = $"table-{Benutzer.ThemeMode.ToString()!.ToLower()}";
         }
-        else
+
+        await LoadRecords();
+
+        if (_records.Count == 0)
         {
-            _model = new Anwesenheit
-            {
-                MitarbeiterId = MitarbeiterId,
-                Datum = Datum,
-                Typ = EnumAnwesenheitTyp.Anwesenheit,
-                Zeit = 0
-            };
+            AddNew();
         }
 
         _visible = true;
+    }
+
+    private async Task LoadRecords()
+    {
+        _records = await AnwesenheitService.GetByMitarbeiterAsync(MitarbeiterId, Datum, Datum);
+    }
+
+    private void AddNew()
+    {
+        _pause = 0;
+        _model = new Anwesenheit
+        {
+            MitarbeiterId = MitarbeiterId,
+            Datum = Datum,
+            Typ = EnumAnwesenheitTyp.Anwesenheit,
+            Zeit = 0
+        };
+        _showForm = true;
+    }
+
+    private void EditRecord(Anwesenheit record)
+    {
+        _model = new Anwesenheit
+        {
+            Id = record.Id,
+            MitarbeiterId = record.MitarbeiterId,
+            Datum = record.Datum,
+            Typ = record.Typ,
+            Zeit = record.Zeit,
+            ZeitVon = record.ZeitVon,
+            ZeitBis = record.ZeitBis,
+            Notiz = record.Notiz
+        };
+
+        if (_model.ZeitVon != null && _model.ZeitBis != null && _model.Zeit != null)
+        {
+            var grossHours = (_model.ZeitBis.Value - _model.ZeitVon.Value).TotalHours;
+            _pause = Convert.ToDecimal((grossHours - (double)_model.Zeit).ToString("N2"));
+        }
+        else
+        {
+            _pause = 0;
+        }
+
+        _showForm = true;
     }
 
     private async Task Save()
@@ -145,20 +241,29 @@
         _model.MitarbeiterId = MitarbeiterId;
         _model.Datum = Datum;
         await AnwesenheitService.SaveAsync(_model);
-        _visible = false;
+        _showForm = false;
+        await LoadRecords();
         await OnChanged.InvokeAsync();
-        await OnClosed.InvokeAsync();
     }
 
-    private async Task Delete()
+    private async Task DeleteRecord(Anwesenheit record)
     {
-        if (_model.Id != Guid.Empty)
+        if (record.Id != Guid.Empty)
         {
-            await AnwesenheitService.DeleteAsync(_model.Id);
+            await AnwesenheitService.DeleteAsync(record.Id);
+            await LoadRecords();
+            await OnChanged.InvokeAsync();
+
+            if (_showForm && _model.Id == record.Id)
+            {
+                _showForm = false;
+            }
         }
-        _visible = false;
-        await OnChanged.InvokeAsync();
-        await OnClosed.InvokeAsync();
+    }
+
+    private void CancelForm()
+    {
+        _showForm = false;
     }
 
     private async Task Close()

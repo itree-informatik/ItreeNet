@@ -104,17 +104,26 @@ else
                                 <span style="color: dodgerblue;">@GetAnwesenheitStunden(daily.Date).ToString("N2") h</span>
                             </div>
                             @{
-                                var anwesenheitRecord = GetAnwesenheitRecord(daily.Date);
-                                if (anwesenheitRecord != null && anwesenheitRecord.Typ != EnumAnwesenheitTyp.Anwesenheit)
+                                var anwesenheitRecords = GetAnwesenheitRecords(daily.Date);
+                                var besondereTypen = anwesenheitRecords.Where(r => r.Typ != EnumAnwesenheitTyp.Anwesenheit).ToList();
+                                if (besondereTypen.Count > 0)
                                 {
                                     <div class="pl-2" style="color: dodgerblue;">
-                                        @if (anwesenheitRecord.Typ == EnumAnwesenheitTyp.Abwesenheit)
+                                        @foreach (var record in besondereTypen)
                                         {
-                                            <span>@anwesenheitRecord.Notiz</span>
-                                        }
-                                        else
-                                        {
-                                            <span>@anwesenheitRecord.Typ</span>
+                                            if (record.Typ == EnumAnwesenheitTyp.Abwesenheit)
+                                            {
+                                                <span>@record.Notiz</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@record.Typ</span>
+                                            }
+
+                                            if (record != besondereTypen.Last())
+                                            {
+                                                <span>, </span>
+                                            }
                                         }
                                     </div>
                                 }
@@ -295,7 +304,7 @@ else
 
     // Anwesenheit
     private Dictionary<DateOnly, decimal> _anwesenheitMap = new();
-    private Dictionary<DateOnly, Anwesenheit> _anwesenheitRecordMap = new();
+    private Dictionary<DateOnly, List<Anwesenheit>> _anwesenheitRecordsMap = new();
     private bool _showAnwesenheitWindow;
     private DateOnly _anwesenheitDatum;
     private DateOnly _datePickerValue = GetWeekToDisplay(DateOnly.FromDateTime(DateTime.Today));
@@ -444,9 +453,9 @@ else
         _anwesenheitMap = records
             .GroupBy(a => a.Datum)
             .ToDictionary(g => g.Key, g => g.Sum(a => a.Zeit ?? 0m));
-        _anwesenheitRecordMap = records
+        _anwesenheitRecordsMap = records
             .GroupBy(a => a.Datum)
-            .ToDictionary(g => g.Key, g => g.First());
+            .ToDictionary(g => g.Key, g => g.ToList());
     }
 
     private decimal GetAnwesenheitStunden(DateOnly date)
@@ -454,9 +463,9 @@ else
         return _anwesenheitMap.TryGetValue(date, out var stunden) ? stunden : 0m;
     }
 
-    private Anwesenheit? GetAnwesenheitRecord(DateOnly date)
+    private List<Anwesenheit> GetAnwesenheitRecords(DateOnly date)
     {
-        return _anwesenheitRecordMap.TryGetValue(date, out var record) ? record : null;
+        return _anwesenheitRecordsMap.TryGetValue(date, out var records) ? records : new();
     }
 
     private void OpenAnwesenheitWindow(DateOnly date)
@@ -474,7 +483,7 @@ else
     private async Task TransferDayToAnwesenheit(Buchungstag day)
     {
         var existing = await AnwesenheitService.GetByMitarbeiterAsync(_mitarbeiterId, day.Date, day.Date);
-        var anwesenheit = existing.FirstOrDefault();
+        var anwesenheit = existing.FirstOrDefault(a => a.Typ == EnumAnwesenheitTyp.Anwesenheit);
 
         if (anwesenheit == null)
         {
