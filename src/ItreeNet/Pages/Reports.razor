@@ -1,12 +1,14 @@
 @page "/intern/reports"
 @attribute [Authorize(Policy = "internPolicy")]
 @using MitarbeiterModel = ItreeNet.Data.Models.Mitarbeiter
+@using ClosedXML.Excel
 @inject IKundenService KundenService
 @inject IProjektService ProjektService
 @inject IVorgangService VorgangService
 @inject ITeamService TeamService
 @inject IMitarbeiterService MitarbeiterService
 @inject IBuchungsService BuchungsService
+@inject IAnwesenheitService AnwesenheitService
 @inject IDokumentService DokumentService
 @inject IJSRuntime JsRuntime
 @inject ISnackbar Snackbar
@@ -290,6 +292,130 @@ else
             }
         </div>
     }
+
+    <div class="box @theme shadow mt-2">
+        <div class="text-gray-800">Anwesenheitsauswertung</div>
+        <hr class="mt-1" />
+        <div class="d-flex gap-3">
+            <div>
+                <label>Mitarbeiter</label>
+                <MudSelect @bind-Value="@_anwSelectedMitarbeiter" Style="width:300px;" Margin="Margin.Dense">
+                    <MudSelectItem Value="@((Guid?)null)">— Alle —</MudSelectItem>
+                    @if (_mitarbeiter != null)
+                    {
+                        @foreach (var item in _mitarbeiter)
+                        {
+                            <MudSelectItem Value="@((Guid?)item.Id)">@item.Fullname</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </div>
+            <div>
+                <label>Datum ab</label>
+                <MudDatePicker @bind-Date="@_anwFromDate" Editable="true" Style="width:200px;" Margin="Margin.Dense" />
+            </div>
+            <div>
+                <label>Datum bis</label>
+                <MudDatePicker @bind-Date="@_anwToDate" Editable="true" Style="width:200px;" Margin="Margin.Dense" />
+            </div>
+            <div class="d-flex align-self-end">
+                @if (_isLoadingAnwesenheit)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" Size="Size.Small">
+                        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
+                        Suchen
+                    </MudButton>
+                }
+                else
+                {
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Search" OnClick="@AnwesenheitSuchen" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">
+                        Suchen
+                    </MudButton>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (_anwesenheiten != null)
+    {
+        <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow mt-2">
+            <div class="text-gray-800">Anwesenheiten</div>
+            <hr class="mt-1" />
+            @if (_isLoadingAnwesenheit)
+            {
+                <ItreeSpinner />
+            }
+            else
+            {
+                <MudDataGrid T="Anwesenheit" Items="_anwesenheiten" Dense="true" Hover="true" Bordered="true" Striped="true"
+                             SortMode="SortMode.Multiple" Groupable="true"
+                             FilterMode="DataGridFilterMode.ColumnFilterRow">
+                    <ToolBarContent>
+                        <MudButton OnClick="ExportAnwesenheitExcel" StartIcon="@Icons.Material.Filled.TableChart" Variant="Variant.Filled" Color="Color.Primary">Export to Excel</MudButton>
+                    </ToolBarContent>
+                    <Columns>
+                        <PropertyColumn Property="x => x.Datum" Title="Datum" Format="dd.MM.yyyy" Groupable="true" />
+                        <PropertyColumn Property="x => x.Mitarbeiter!.Fullname" Title="Mitarbeiter" Groupable="true" />
+                        <PropertyColumn Property="x => x.Typ" Title="Typ" Groupable="true" />
+                        <TemplateColumn Title="Stunden">
+                            <CellTemplate Context="item">
+                                @item.Item.Zeit?.ToString("N2")
+                            </CellTemplate>
+                            <FooterTemplate>
+                                @_anwesenheitenZeitSum.ToString("N2") h
+                            </FooterTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Von">
+                            <CellTemplate Context="item">
+                                @item.Item.ZeitVon?.ToString("HH:mm")
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Bis">
+                            <CellTemplate Context="item">
+                                @item.Item.ZeitBis?.ToString("HH:mm")
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="x => x.Notiz" Title="Notiz" />
+                    </Columns>
+                </MudDataGrid>
+
+                @if (_anwesenheitenZusammenfassung.Count > 0)
+                {
+                    <div class="mt-3">
+                        <div class="text-gray-800">Zusammenfassung pro Mitarbeiter</div>
+                        <hr class="mt-1" />
+                        <table class="table table-sm table-striped @(_tableTheme)">
+                            <thead>
+                                <tr>
+                                    <th>Mitarbeiter</th>
+                                    <th>Anwesenheit</th>
+                                    <th>Ferien</th>
+                                    <th>Gleitzeit</th>
+                                    <th>Krank</th>
+                                    <th>Abwesenheit</th>
+                                    <th>Gesamt</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var z in _anwesenheitenZusammenfassung)
+                                {
+                                    <tr>
+                                        <td>@z.Mitarbeiter</td>
+                                        <td>@z.Anwesenheit.ToString("N2") h</td>
+                                        <td>@z.Ferien.ToString("N2") h</td>
+                                        <td>@z.Gleitzeit.ToString("N2") h</td>
+                                        <td>@z.Krank.ToString("N2") h</td>
+                                        <td>@z.Abwesenheit.ToString("N2") h</td>
+                                        <td><strong>@z.Gesamt.ToString("N2") h</strong></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+        </div>
+    }
 }
 
 @code {
@@ -303,6 +429,7 @@ else
     private bool _isLoadingDownload;
     private bool _isLoadingArbeitsrapport;
     private bool _isLoadingAbrechnung;
+    private bool _isLoadingAnwesenheit;
 
     private DateTime? _abrechnungsDatum;
 
@@ -339,7 +466,20 @@ else
     private DateOnly? _from => _fromDate.HasValue ? DateOnly.FromDateTime(_fromDate.Value) : null;
     private DateOnly? _to => _toDate.HasValue ? DateOnly.FromDateTime(_toDate.Value) : null;
 
+    // Anwesenheitsauswertung
+    private Guid? _anwSelectedMitarbeiter;
+    private DateTime? _anwFromDate = DateTime.Today.Day <= 5
+        ? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(-1)
+        : new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? _anwToDate = DateTime.Today.Day <= 5
+        ? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddDays(-1)
+        : DateTime.Today;
+    private List<Anwesenheit>? _anwesenheiten;
+    private decimal _anwesenheitenZeitSum;
+    private List<AnwesenheitZusammenfassung> _anwesenheitenZusammenfassung = new();
+
     private string theme = string.Empty;
+    private string _tableTheme = "table-light";
 
     protected override async Task OnInitializedAsync()
     {
@@ -348,6 +488,7 @@ else
 
 
         theme = $"bg-{Benutzer!.ThemeMode.ToString()!.ToLower()}";
+        _tableTheme = $"table-{Benutzer.ThemeMode.ToString()!.ToLower()}";
         MitarbeiterId = (Guid)Benutzer.MitarbeiterId;
 
         var heute = DateTime.Today;
@@ -509,4 +650,142 @@ else
             _projekteAusw = await ProjektService.ProjectsByCustomerIdAsync(_selectedKundeAusw, status);
         }
     }
+
+    #region Anwesenheitsauswertung
+
+    private async Task AnwesenheitSuchen()
+    {
+        _isLoadingAnwesenheit = true;
+        await InvokeAsync(StateHasChanged);
+
+        var von = _anwFromDate.HasValue ? DateOnly.FromDateTime(_anwFromDate.Value) : (DateOnly?)null;
+        var bis = _anwToDate.HasValue ? DateOnly.FromDateTime(_anwToDate.Value) : (DateOnly?)null;
+
+        _anwesenheiten = await AnwesenheitService.SucheAnwesenheitAsync(_anwSelectedMitarbeiter, von, bis);
+        _anwesenheitenZeitSum = _anwesenheiten?.Sum(a => a.Zeit ?? 0) ?? 0;
+
+        BerechneZusammenfassung();
+
+        _isLoadingAnwesenheit = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void BerechneZusammenfassung()
+    {
+        if (_anwesenheiten == null || _anwesenheiten.Count == 0)
+        {
+            _anwesenheitenZusammenfassung = new();
+            return;
+        }
+
+        _anwesenheitenZusammenfassung = _anwesenheiten
+            .GroupBy(a => new { a.MitarbeiterId, Name = a.Mitarbeiter?.Fullname ?? "Unbekannt" })
+            .Select(g => new AnwesenheitZusammenfassung
+            {
+                Mitarbeiter = g.Key.Name,
+                Anwesenheit = g.Where(a => a.Typ == EnumAnwesenheitTyp.Anwesenheit).Sum(a => a.Zeit ?? 0),
+                Ferien = g.Where(a => a.Typ == EnumAnwesenheitTyp.Ferien).Sum(a => a.Zeit ?? 0),
+                Gleitzeit = g.Where(a => a.Typ == EnumAnwesenheitTyp.Gleitzeit).Sum(a => a.Zeit ?? 0),
+                Krank = g.Where(a => a.Typ == EnumAnwesenheitTyp.Krank).Sum(a => a.Zeit ?? 0),
+                Abwesenheit = g.Where(a => a.Typ == EnumAnwesenheitTyp.Abwesenheit).Sum(a => a.Zeit ?? 0)
+            })
+            .OrderBy(z => z.Mitarbeiter)
+            .ToList();
+    }
+
+    private async Task ExportAnwesenheitExcel()
+    {
+        if (_anwesenheiten == null || _anwesenheiten.Count == 0)
+            return;
+
+        using var workbook = new XLWorkbook();
+
+        // Detailblatt
+        var ws = workbook.Worksheets.Add("Anwesenheiten");
+        ws.Cell(1, 1).Value = "Datum";
+        ws.Cell(1, 2).Value = "Mitarbeiter";
+        ws.Cell(1, 3).Value = "Typ";
+        ws.Cell(1, 4).Value = "Stunden";
+        ws.Cell(1, 5).Value = "Von";
+        ws.Cell(1, 6).Value = "Bis";
+        ws.Cell(1, 7).Value = "Notiz";
+
+        var headerRange = ws.Range(1, 1, 1, 7);
+        headerRange.Style.Font.Bold = true;
+
+        for (var i = 0; i < _anwesenheiten.Count; i++)
+        {
+            var a = _anwesenheiten[i];
+            var row = i + 2;
+            ws.Cell(row, 1).Value = a.Datum.ToString("dd.MM.yyyy");
+            ws.Cell(row, 2).Value = a.Mitarbeiter?.Fullname;
+            ws.Cell(row, 3).Value = a.Typ;
+            ws.Cell(row, 4).Value = a.Zeit ?? 0;
+            ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
+            ws.Cell(row, 5).Value = a.ZeitVon?.ToString("HH:mm") ?? "";
+            ws.Cell(row, 6).Value = a.ZeitBis?.ToString("HH:mm") ?? "";
+            ws.Cell(row, 7).Value = a.Notiz ?? "";
+        }
+
+        ws.Columns().AdjustToContents();
+
+        // Zusammenfassungsblatt
+        if (_anwesenheitenZusammenfassung.Count > 0)
+        {
+            var wsZ = workbook.Worksheets.Add("Zusammenfassung");
+            wsZ.Cell(1, 1).Value = "Mitarbeiter";
+            wsZ.Cell(1, 2).Value = "Anwesenheit";
+            wsZ.Cell(1, 3).Value = "Ferien";
+            wsZ.Cell(1, 4).Value = "Gleitzeit";
+            wsZ.Cell(1, 5).Value = "Krank";
+            wsZ.Cell(1, 6).Value = "Abwesenheit";
+            wsZ.Cell(1, 7).Value = "Gesamt";
+
+            var headerRangeZ = wsZ.Range(1, 1, 1, 7);
+            headerRangeZ.Style.Font.Bold = true;
+
+            for (var i = 0; i < _anwesenheitenZusammenfassung.Count; i++)
+            {
+                var z = _anwesenheitenZusammenfassung[i];
+                var row = i + 2;
+                wsZ.Cell(row, 1).Value = z.Mitarbeiter;
+                wsZ.Cell(row, 2).Value = z.Anwesenheit;
+                wsZ.Cell(row, 3).Value = z.Ferien;
+                wsZ.Cell(row, 4).Value = z.Gleitzeit;
+                wsZ.Cell(row, 5).Value = z.Krank;
+                wsZ.Cell(row, 6).Value = z.Abwesenheit;
+                wsZ.Cell(row, 7).Value = z.Gesamt;
+
+                for (var col = 2; col <= 7; col++)
+                    wsZ.Cell(row, col).Style.NumberFormat.Format = "#,##0.00";
+            }
+
+            wsZ.Columns().AdjustToContents();
+        }
+
+        byte[] fileBytes;
+        using (var stream = new MemoryStream())
+        {
+            workbook.SaveAs(stream);
+            fileBytes = stream.ToArray();
+        }
+
+        var base64 = Convert.ToBase64String(fileBytes);
+        var filename = $"Anwesenheitsauswertung_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+
+        await JsRuntime.InvokeVoidAsync("DownloadFileFromBase64", filename, base64);
+    }
+
+    private class AnwesenheitZusammenfassung
+    {
+        public string Mitarbeiter { get; set; } = "";
+        public decimal Anwesenheit { get; set; }
+        public decimal Ferien { get; set; }
+        public decimal Gleitzeit { get; set; }
+        public decimal Krank { get; set; }
+        public decimal Abwesenheit { get; set; }
+        public decimal Gesamt => Anwesenheit + Ferien + Gleitzeit + Krank + Abwesenheit;
+    }
+
+    #endregion
 }

@@ -8,5 +8,6 @@ namespace ItreeNet.Interfaces
         Task<Anwesenheit?> GetByIdAsync(Guid id);
         Task<Anwesenheit> SaveAsync(Anwesenheit model);
         Task DeleteAsync(Guid id);
+        Task<List<Anwesenheit>> SucheAnwesenheitAsync(Guid? mitarbeiterId, DateOnly? von, DateOnly? bis);
     }
 }

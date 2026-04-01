@@ -74,5 +74,27 @@ namespace ItreeNet.Services
                 await context.SaveChangesAsync();
             }
         }
+
+        public async Task<List<Anwesenheit>> SucheAnwesenheitAsync(Guid? mitarbeiterId, DateOnly? von, DateOnly? bis)
+        {
+            await using var context = await _dbFactory.CreateDbContextAsync();
+
+            IQueryable<TAnwesenheit> query = context.TAnwesenheit
+                .AsNoTracking()
+                .Include(a => a.Mitarbeiter);
+
+            if (mitarbeiterId != null)
+                query = query.Where(a => a.MitarbeiterId == mitarbeiterId);
+
+            if (von != null)
+                query = query.Where(a => a.Datum >= von);
+
+            if (bis != null)
+                query = query.Where(a => a.Datum <= bis);
+
+            var tResult = await query.OrderByDescending(a => a.Datum).Take(1000).ToListAsync();
+
+            return _mapper.Map<List<Anwesenheit>>(tResult);
+        }
     }
 }
