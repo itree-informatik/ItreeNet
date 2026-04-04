@@ -1,7 +1,6 @@
 @page "/intern/reports"
 @attribute [Authorize(Policy = "internPolicy")]
 @using MitarbeiterModel = ItreeNet.Data.Models.Mitarbeiter
-@using ClosedXML.Excel
 @inject IKundenService KundenService
 @inject IProjektService ProjektService
 @inject IVorgangService VorgangService
@@ -17,6 +16,10 @@
 <style>
     label {
         width: 100px;
+    }
+
+    .mud-picker-inline-paper {
+        min-width: 320px !important;
     }
 </style>
 
@@ -48,7 +51,7 @@ else
                 }
                 else
                 {
-                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Description" OnClick="@ErstelleArbeitsrapporteOffen" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="@_isLoadingAbrechnung">
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Description" OnClick="@ErstelleArbeitsrapporteAsync" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="@_isLoadingAbrechnung">
                         Arbeitsrapport erstellen
                     </MudButton>
                 }
@@ -61,7 +64,7 @@ else
                 }
                 else
                 {
-                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.CheckCircle" OnClick="@AbrechnungDurchgefuehrt" Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" Disabled="@_isLoadingArbeitsrapport">
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.CheckCircle" OnClick="@FuehreAbrechnungDurchAsync" Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" Disabled="@_isLoadingArbeitsrapport">
                         Abrechnung durchgeführt
                     </MudButton>
                 }
@@ -111,7 +114,7 @@ else
             </div>
             <div>
                 <label for="dropdownlist_kunde">Kunde</label>
-                <MudSelect T="Guid?" Value="@_selectedKundeAusw" ValueChanged="@OnChangeKundenAuswValue" Style="width:300px;" Margin="Margin.Dense">
+                <MudSelect T="Guid?" Value="@_selectedKundeAusw" ValueChanged="@OnKundeAuswChangedAsync" Style="width:300px;" Margin="Margin.Dense">
                     @if (_kundenAusw != null)
                     {
                         @foreach (var item in _kundenAusw.OrderBy(k => k.Kundenname))
@@ -142,14 +145,14 @@ else
             <div class="d-flex justify-content-end align-self-end" style="width: auto">
                 @if (_isLoadingDownload)
                 {
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" OnClick="@Erstellen" Size="Size.Small">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" OnClick="@ErstelleProjektuebersichtAsync" Size="Size.Small">
                         <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
                         Projektübersicht erstellen
                     </MudButton>
                 }
                 else
                 {
-                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Settings" OnClick="@Erstellen" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="@(_selectedProjektAusw == null)">
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Settings" OnClick="@ErstelleProjektuebersichtAsync" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="@(_selectedProjektAusw == null)">
                         Projektübersicht erstellen
                     </MudButton>
                 }
@@ -189,19 +192,19 @@ else
                     }
                 </MudSelect>
             </div>
-            <div>
+            <div style="width:150px;">
                 <label for="fromDate">Datum ab</label>
-                <MudDatePicker @bind-Date="@_fromDate" Editable="true" Style="width:150px;" Margin="Margin.Dense" />
+                <MudDatePicker @bind-Date="@_fromDate" Editable="true" Margin="Margin.Dense" />
             </div>
-            <div>
+            <div style="width:150px;">
                 <label for="toDate">Datum bis</label>
-                <MudDatePicker @bind-Date="@_toDate" Editable="true" Style="width:150px;" Margin="Margin.Dense" />
+                <MudDatePicker @bind-Date="@_toDate" Editable="true" Margin="Margin.Dense" />
             </div>
         </div>
         <div class="d-flex justify-content-between mt-2">
             <div>
                 <label for="dropdownlist_kunde">Kunde</label>
-                <MudSelect T="Guid?" Value="@_selectedKunde" ValueChanged="@OnChangeKundeValue" Style="width:300px;" Margin="Margin.Dense">
+                <MudSelect T="Guid?" Value="@_selectedKunde" ValueChanged="@OnKundeChangedAsync" Style="width:300px;" Margin="Margin.Dense">
                     @if (_kunden != null)
                     {
                         @foreach (var item in _kunden)
@@ -213,7 +216,7 @@ else
             </div>
             <div>
                 <label for="dropdownlist_projekt">Projekt</label>
-                <MudSelect T="Guid?" Value="@_selectedProjekt" ValueChanged="@OnChangeProjektValue" Style="width:300px;" Margin="Margin.Dense">
+                <MudSelect T="Guid?" Value="@_selectedProjekt" ValueChanged="@OnProjektChangedAsync" Style="width:300px;" Margin="Margin.Dense">
                     @if (_projekte != null)
                     {
                         @foreach (var item in _projekte)
@@ -238,14 +241,14 @@ else
             <div class="d-flex justify-content-end align-self-end" style="width: auto">
                 @if (_isLoadingBookings)
                 {
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" OnClick="@Suchen" Size="Size.Small">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" OnClick="@SucheBuchungenAsync" Size="Size.Small">
                         <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
                         Suchen
                     </MudButton>
                 }
                 else
                 {
-                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Search" OnClick="@Suchen" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Search" OnClick="@SucheBuchungenAsync" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">
                         Suchen
                     </MudButton>
                 }
@@ -270,7 +273,7 @@ else
                              SortMode="SortMode.Multiple" Groupable="true"
                              FilterMode="DataGridFilterMode.ColumnFilterRow">
                     <ToolBarContent>
-                        <MudButton OnClick="ExportExcel" StartIcon="@Icons.Material.Filled.TableChart" Variant="Variant.Filled" Color="Color.Primary">Export to Excel</MudButton>
+                        <MudButton OnClick="ExportBuchungenExcelAsync" StartIcon="@Icons.Material.Filled.TableChart" Variant="Variant.Filled" Color="Color.Primary">Export to Excel</MudButton>
                     </ToolBarContent>
                     <Columns>
                         <PropertyColumn Property="x => x.Datum" Title="Datum" Format="dd.MM.yyyy" Groupable="true" />
@@ -310,13 +313,13 @@ else
                     }
                 </MudSelect>
             </div>
-            <div>
+            <div style="width:200px;">
                 <label>Datum ab</label>
-                <MudDatePicker @bind-Date="@_anwFromDate" Editable="true" Style="width:200px;" Margin="Margin.Dense" />
+                <MudDatePicker @bind-Date="@_anwFromDate" Editable="true" Margin="Margin.Dense" />
             </div>
-            <div>
+            <div style="width:200px;">
                 <label>Datum bis</label>
-                <MudDatePicker @bind-Date="@_anwToDate" Editable="true" Style="width:200px;" Margin="Margin.Dense" />
+                <MudDatePicker @bind-Date="@_anwToDate" Editable="true" Margin="Margin.Dense" />
             </div>
             <div class="d-flex align-self-end">
                 @if (_isLoadingAnwesenheit)
@@ -328,7 +331,7 @@ else
                 }
                 else
                 {
-                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Search" OnClick="@AnwesenheitSuchen" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">
+                    <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Search" OnClick="@SucheAnwesenheitenAsync" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">
                         Suchen
                     </MudButton>
                 }
@@ -351,7 +354,7 @@ else
                              SortMode="SortMode.Multiple" Groupable="true"
                              FilterMode="DataGridFilterMode.ColumnFilterRow">
                     <ToolBarContent>
-                        <MudButton OnClick="ExportAnwesenheitExcel" StartIcon="@Icons.Material.Filled.TableChart" Variant="Variant.Filled" Color="Color.Primary">Export to Excel</MudButton>
+                        <MudButton OnClick="ExportAnwesenheitenExcelAsync" StartIcon="@Icons.Material.Filled.TableChart" Variant="Variant.Filled" Color="Color.Primary">Export to Excel</MudButton>
                     </ToolBarContent>
                     <Columns>
                         <PropertyColumn Property="x => x.Datum" Title="Datum" Format="dd.MM.yyyy" Groupable="true" />
@@ -481,11 +484,13 @@ else
     private string theme = string.Empty;
     private string _tableTheme = "table-light";
 
+    /// <summary>
+    /// Initialisiert die Seite: Lädt Stammdaten (Mitarbeiter, Kunden, Teams) und setzt Standardwerte.
+    /// </summary>
     protected override async Task OnInitializedAsync()
     {
         if (Benutzer == null || Benutzer.MitarbeiterId == null)
             throw new Exception("Kein Benutzer gefunden");
-
 
         theme = $"bg-{Benutzer!.ThemeMode.ToString()!.ToLower()}";
         _tableTheme = $"table-{Benutzer.ThemeMode.ToString()!.ToLower()}";
@@ -515,7 +520,10 @@ else
         _projekteAusw = new List<Projekt>();
     }
 
-    private async Task Suchen()
+    /// <summary>
+    /// Sucht Buchungen anhand der gewählten Filterkriterien (Mitarbeiter, Team, Kunde, Projekt, Aktivität, Zeitraum).
+    /// </summary>
+    private async Task SucheBuchungenAsync()
     {
         _isLoadingBookings = true;
         _buchungen = await BuchungsService.SucheBuchungAsync(_selectedMitarbeiter, _selectedTeam, _selectedKunde, _selectedProjekt, _selectedAktivitaet, _from, _to);
@@ -523,7 +531,10 @@ else
         _isLoadingBookings = false;
     }
 
-    private async Task Erstellen()
+    /// <summary>
+    /// Erstellt eine Projektübersicht als Dokument für den gewählten Zeitraum und das gewählte Projekt.
+    /// </summary>
+    private async Task ErstelleProjektuebersichtAsync()
     {
         if (!_selectedProjektAusw.HasValue)
             return;
@@ -534,7 +545,7 @@ else
         try
         {
             var filePath = await DokumentService.CreateProjektUebersicht(_selectedJahr, _selectedMonatVon, _selectedMonatBis, _selectedProjektAusw.Value);
-            await DownloadFile(filePath);
+            await DownloadFileAsync(filePath);
         }
         catch (Exception ex)
         {
@@ -545,7 +556,10 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task ErstelleArbeitsrapporteOffen()
+    /// <summary>
+    /// Erstellt Arbeitsrapporte für alle offenen Buchungen bis zum gewählten Abrechnungsdatum.
+    /// </summary>
+    private async Task ErstelleArbeitsrapporteAsync()
     {
         if (_abrechnungsDatum == null)
             return;
@@ -557,7 +571,7 @@ else
         {
             var bis = DateOnly.FromDateTime(_abrechnungsDatum.Value);
             var filePath = await DokumentService.CreateArbeitsrapporteOffeneBuchungen(bis);
-            await DownloadFile(filePath);
+            await DownloadFileAsync(filePath);
         }
         catch (Exception ex)
         {
@@ -568,7 +582,10 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task AbrechnungDurchgefuehrt()
+    /// <summary>
+    /// Markiert alle offenen Buchungen als abgerechnet.
+    /// </summary>
+    private async Task FuehreAbrechnungDurchAsync()
     {
         _isLoadingAbrechnung = true;
         await InvokeAsync(StateHasChanged);
@@ -587,52 +604,31 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task DownloadFile(string filePath)
-    {
-        if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
-        {
-            await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-            using var streamRef = new DotNetStreamReference(stream: stream);
-            await JsRuntime.InvokeVoidAsync("DownloadFileFromStream", Path.GetFileName(filePath), streamRef);
-        }
-    }
-
-    private async Task ExportExcel()
-    {
-        // Excel export trigger - existing export logic can be wired here if needed
-        await Task.CompletedTask;
-    }
-
-    private async Task OnChangeKundeValue(Guid? value)
+    /// <summary>
+    /// Callback bei Kundenauswahl im Suchbereich. Lädt zugehörige Projekte nach.
+    /// </summary>
+    private async Task OnKundeChangedAsync(Guid? value)
     {
         _selectedKunde = value;
-        await OnChangeKunde();
-    }
-
-    private async Task OnChangeKunde()
-    {
         _projekte = await ProjektService.ProjectsByCustomerIdAsync(_selectedKunde);
     }
 
-    private async Task OnChangeProjektValue(Guid? value)
+    /// <summary>
+    /// Callback bei Projektauswahl im Suchbereich. Lädt zugehörige Aktivitäten nach.
+    /// </summary>
+    private async Task OnProjektChangedAsync(Guid? value)
     {
         _selectedProjekt = value;
-        await OnChangeProjekt();
-    }
-
-    private async Task OnChangeProjekt()
-    {
         _aktivitaeten = await VorgangService.GetAllProjecIdAsync(_selectedProjekt);
     }
 
-    private async Task OnChangeKundenAuswValue(Guid? value)
+    /// <summary>
+    /// Callback bei Kundenauswahl im Projektübersicht-Bereich. Lädt zugehörige Projekte nach.
+    /// </summary>
+    private async Task OnKundeAuswChangedAsync(Guid? value)
     {
         _selectedKundeAusw = value;
-        await OnChangeKundenAusw();
-    }
 
-    private async Task OnChangeKundenAusw()
-    {
         if (_selectedKundeAusw == null)
         {
             _selectedProjektAusw = null;
@@ -640,20 +636,17 @@ else
         }
         else
         {
-            var status = EnumStatus.Aktiv;
-
-            if (!_onlyActiveProjects)
-            {
-                status = EnumStatus.Inaktiv;
-            }
-
+            var status = _onlyActiveProjects ? EnumStatus.Aktiv : EnumStatus.Inaktiv;
             _projekteAusw = await ProjektService.ProjectsByCustomerIdAsync(_selectedKundeAusw, status);
         }
     }
 
     #region Anwesenheitsauswertung
 
-    private async Task AnwesenheitSuchen()
+    /// <summary>
+    /// Sucht Anwesenheitseinträge anhand Mitarbeiter und Zeitraum und berechnet die Zusammenfassung.
+    /// </summary>
+    private async Task SucheAnwesenheitenAsync()
     {
         _isLoadingAnwesenheit = true;
         await InvokeAsync(StateHasChanged);
@@ -664,13 +657,16 @@ else
         _anwesenheiten = await AnwesenheitService.SucheAnwesenheitAsync(_anwSelectedMitarbeiter, von, bis);
         _anwesenheitenZeitSum = _anwesenheiten?.Sum(a => a.Zeit ?? 0) ?? 0;
 
-        BerechneZusammenfassung();
+        BerechneAnwesenheitZusammenfassung();
 
         _isLoadingAnwesenheit = false;
         await InvokeAsync(StateHasChanged);
     }
 
-    private void BerechneZusammenfassung()
+    /// <summary>
+    /// Gruppiert die geladenen Anwesenheiten pro Mitarbeiter und berechnet Stundensummen je Typ.
+    /// </summary>
+    private void BerechneAnwesenheitZusammenfassung()
     {
         if (_anwesenheiten == null || _anwesenheiten.Count == 0)
         {
@@ -691,100 +687,6 @@ else
             })
             .OrderBy(z => z.Mitarbeiter)
             .ToList();
-    }
-
-    private async Task ExportAnwesenheitExcel()
-    {
-        if (_anwesenheiten == null || _anwesenheiten.Count == 0)
-            return;
-
-        using var workbook = new XLWorkbook();
-
-        // Detailblatt
-        var ws = workbook.Worksheets.Add("Anwesenheiten");
-        ws.Cell(1, 1).Value = "Datum";
-        ws.Cell(1, 2).Value = "Mitarbeiter";
-        ws.Cell(1, 3).Value = "Typ";
-        ws.Cell(1, 4).Value = "Stunden";
-        ws.Cell(1, 5).Value = "Von";
-        ws.Cell(1, 6).Value = "Bis";
-        ws.Cell(1, 7).Value = "Notiz";
-
-        var headerRange = ws.Range(1, 1, 1, 7);
-        headerRange.Style.Font.Bold = true;
-
-        for (var i = 0; i < _anwesenheiten.Count; i++)
-        {
-            var a = _anwesenheiten[i];
-            var row = i + 2;
-            ws.Cell(row, 1).Value = a.Datum.ToString("dd.MM.yyyy");
-            ws.Cell(row, 2).Value = a.Mitarbeiter?.Fullname;
-            ws.Cell(row, 3).Value = a.Typ;
-            ws.Cell(row, 4).Value = a.Zeit ?? 0;
-            ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 5).Value = a.ZeitVon?.ToString("HH:mm") ?? "";
-            ws.Cell(row, 6).Value = a.ZeitBis?.ToString("HH:mm") ?? "";
-            ws.Cell(row, 7).Value = a.Notiz ?? "";
-        }
-
-        ws.Columns().AdjustToContents();
-
-        // Zusammenfassungsblatt
-        if (_anwesenheitenZusammenfassung.Count > 0)
-        {
-            var wsZ = workbook.Worksheets.Add("Zusammenfassung");
-            wsZ.Cell(1, 1).Value = "Mitarbeiter";
-            wsZ.Cell(1, 2).Value = "Anwesenheit";
-            wsZ.Cell(1, 3).Value = "Ferien";
-            wsZ.Cell(1, 4).Value = "Gleitzeit";
-            wsZ.Cell(1, 5).Value = "Krank";
-            wsZ.Cell(1, 6).Value = "Abwesenheit";
-            wsZ.Cell(1, 7).Value = "Gesamt";
-
-            var headerRangeZ = wsZ.Range(1, 1, 1, 7);
-            headerRangeZ.Style.Font.Bold = true;
-
-            for (var i = 0; i < _anwesenheitenZusammenfassung.Count; i++)
-            {
-                var z = _anwesenheitenZusammenfassung[i];
-                var row = i + 2;
-                wsZ.Cell(row, 1).Value = z.Mitarbeiter;
-                wsZ.Cell(row, 2).Value = z.Anwesenheit;
-                wsZ.Cell(row, 3).Value = z.Ferien;
-                wsZ.Cell(row, 4).Value = z.Gleitzeit;
-                wsZ.Cell(row, 5).Value = z.Krank;
-                wsZ.Cell(row, 6).Value = z.Abwesenheit;
-                wsZ.Cell(row, 7).Value = z.Gesamt;
-
-                for (var col = 2; col <= 7; col++)
-                    wsZ.Cell(row, col).Style.NumberFormat.Format = "#,##0.00";
-            }
-
-            wsZ.Columns().AdjustToContents();
-        }
-
-        byte[] fileBytes;
-        using (var stream = new MemoryStream())
-        {
-            workbook.SaveAs(stream);
-            fileBytes = stream.ToArray();
-        }
-
-        var base64 = Convert.ToBase64String(fileBytes);
-        var filename = $"Anwesenheitsauswertung_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-
-        await JsRuntime.InvokeVoidAsync("DownloadFileFromBase64", filename, base64);
-    }
-
-    private class AnwesenheitZusammenfassung
-    {
-        public string Mitarbeiter { get; set; } = "";
-        public decimal Anwesenheit { get; set; }
-        public decimal Ferien { get; set; }
-        public decimal Gleitzeit { get; set; }
-        public decimal Krank { get; set; }
-        public decimal Abwesenheit { get; set; }
-        public decimal Gesamt => Anwesenheit + Ferien + Gleitzeit + Krank + Abwesenheit;
     }
 
     #endregion
