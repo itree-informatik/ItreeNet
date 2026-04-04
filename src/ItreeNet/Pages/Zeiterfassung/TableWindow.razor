@@ -16,7 +16,7 @@
                     @if (Buchung.Id == Guid.Empty)
                     {
                         <FormField Label="Tagesbuchung">
-                            <MudSwitch @bind-Value="@_singleBooking" Color="Color.Primary" />
+                            <MudSwitch Value="@_singleBooking" ValueChanged="@((bool val) => OnSingleBookingChanged(val))" Color="Color.Primary" />
                         </FormField>
                     }
 
@@ -35,9 +35,9 @@
                         </FormField>
 
                         <FormField Label="Datum bis">
-                            <MudDatePicker Date="@_dateToAsDateTime" DateChanged="@OnDateToChanged" Editable="true" />
+                            <MudDatePicker Date="@DatumBisAsDateTime" DateChanged="@OnDatumBisChanged" Editable="true" />
+                            <ValidationMessage For="(() => Buchung.DatumBis)" />
                         </FormField>
-                        @*ToDo: Validieren Datum bis muss nach Datum von sein*@
                     }
 
                     <FormField Label="Kunde">
@@ -180,13 +180,12 @@
     private bool _isVisibleCancelConfirm;
     private bool _singleBooking = true;
     private BuchungValidator _validator = new();
-    private DateOnly _dateTo = DateOnly.FromDateTime(DateTime.Today);
 
     private bool _buttonIsLoading = false;
 
     // Bridge properties for MudDatePicker (uses DateTime?)
     private DateTime? BuchungDatumAsDateTime => Buchung?.Datum.ToDateTime(new TimeOnly(0, 0, 0));
-    private DateTime? _dateToAsDateTime => _dateTo.ToDateTime(new TimeOnly(0, 0, 0));
+    private DateTime? DatumBisAsDateTime => Buchung?.DatumBis?.ToDateTime(new TimeOnly(0, 0, 0));
 
     // Bridge properties for MudTimePicker (uses TimeSpan? but ZeitVon/ZeitBis are DateTime?)
     private TimeSpan? ZeitVonAsTimeSpan
@@ -238,16 +237,25 @@
         }
     }
 
+    private void OnSingleBookingChanged(bool value)
+    {
+        _singleBooking = value;
+        if (!value && Buchung != null)
+            Buchung.DatumBis ??= Buchung.Datum;
+        else if (value && Buchung != null)
+            Buchung.DatumBis = null;
+    }
+
     private void OnBuchungDatumChanged(DateTime? newValue)
     {
         if (Buchung != null && newValue.HasValue)
             Buchung.Datum = DateOnly.FromDateTime(newValue.Value);
     }
 
-    private void OnDateToChanged(DateTime? newValue)
+    private void OnDatumBisChanged(DateTime? newValue)
     {
-        if (newValue.HasValue)
-            _dateTo = DateOnly.FromDateTime(newValue.Value);
+        if (Buchung != null && newValue.HasValue)
+            Buchung.DatumBis = DateOnly.FromDateTime(newValue.Value);
     }
 
     protected override async Task OnInitializedAsync()
@@ -341,7 +349,7 @@
                 if (_singleBooking)
                     newList = await BuchungsService.InsertBuchungAsync(Buchung, ShowWeek);
                 else
-                    newList = await BuchungsService.InsertBuchungenAsync(Buchung, ShowWeek, _dateTo);
+                    newList = await BuchungsService.InsertBuchungenAsync(Buchung, ShowWeek, Buchung.DatumBis!.Value);
             }
             else
             {

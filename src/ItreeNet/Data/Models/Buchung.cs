@@ -6,6 +6,7 @@
         public Guid VorgangId { get; set; }
         public Guid MitarbeiterId { get; set; }
         public DateOnly Datum { get; set; }
+        public DateOnly? DatumBis { get; set; }
         public DateTime? ZeitVon { get; set; }
         public DateTime? ZeitBis { get; set; }
         public decimal? Zeit { get; set; }

@@ -13,6 +13,13 @@ namespace ItreeNet.Data.Validators
             RuleFor(b => b.MitarbeiterId).NotNull().WithMessage("MitarbeiterId fehlt.");
             RuleFor(b => b.Buchungstext).NotNull().MaximumLength(100).WithMessage("Text darf nicht länger als 100 Zeichen sein");
 
+            When(b => b.DatumBis != null, () =>
+            {
+                RuleFor(b => b.DatumBis)
+                    .GreaterThanOrEqualTo(b => b.Datum)
+                    .WithMessage("Datum bis muss nach Datum von sein.");
+            });
+
             When(b => b.ZeitVon != null, () =>
             {
                 RuleFor(x => x.ZeitVon).Custom((date, context) =>
