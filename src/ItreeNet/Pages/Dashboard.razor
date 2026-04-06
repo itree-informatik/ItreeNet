@@ -163,7 +163,7 @@
                                 <div class="progress-bar @cssClass" role="progressbar"
                                      style="width: @(_maxBuchungsStunden > 0 ? 100 / _maxBuchungsStunden * buchung.Zeit : 0)%" aria-valuenow="@buchung.Zeit" aria-valuemin="0"
                                      aria-valuemax="@_maxBuchungsStunden">
-                                    @buchung.Zeit h
+                                    @buchung.Zeit.FormatMinutenAlsZeit()h
                                 </div>
                             </div>
                         </div>
@@ -520,7 +520,7 @@
                                         <td>@buchung.Datum.ToString("dd.MM.yyyy")</td>
                                         <td>@buchung.ProjektName - @buchung.VorgangName</td>
                                         <td>@buchung.Buchungstext</td>
-                                        <td>@buchung.Zeit h</td>
+                                        <td>@buchung.Zeit.FormatMinutenAlsZeit()h</td>
                                         <td>@buchung.MitarbeiterName</td>
                                     </tr>
                                 }

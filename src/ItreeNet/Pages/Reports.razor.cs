@@ -50,7 +50,7 @@ public partial class Reports
             ws.Cell(row, 3).Value = b.ProjektName;
             ws.Cell(row, 4).Value = b.Vorgang?.Bezeichnung;
             ws.Cell(row, 5).Value = b.Mitarbeiter?.Fullname;
-            ws.Cell(row, 6).Value = b.Zeit ?? 0;
+            ws.Cell(row, 6).Value = (b.Zeit ?? 0) / 60m;
             ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0.00";
             ws.Cell(row, 7).Value = b.Buchungstext;
         }
@@ -59,7 +59,7 @@ public partial class Reports
         var sumRow = _buchungen.Count + 2;
         ws.Cell(sumRow, 5).Value = "Total";
         ws.Cell(sumRow, 5).Style.Font.Bold = true;
-        ws.Cell(sumRow, 6).Value = _buchungenZeitSum;
+        ws.Cell(sumRow, 6).Value = _buchungenZeitSum / 60m;
         ws.Cell(sumRow, 6).Style.NumberFormat.Format = "#,##0.00";
         ws.Cell(sumRow, 6).Style.Font.Bold = true;
 

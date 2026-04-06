@@ -21,8 +21,7 @@ public partial class TBuchung
     [Column(TypeName = "datetime")]
     public DateTime? ZeitBis { get; set; }
 
-    [Column(TypeName = "decimal(5, 2)")]
-    public decimal? Zeit { get; set; }
+    public int? Zeit { get; set; }
 
     [StringLength(100)]
     public string Buchungstext { get; set; } = null!;
@@ -43,8 +42,7 @@ public partial class TBuchung
 
     public DateOnly? OriginalDatum { get; set; }
 
-    [Column(TypeName = "decimal(5, 2)")]
-    public decimal? OriginalZeit { get; set; }
+    public int? OriginalZeit { get; set; }
 
     [StringLength(100)]
     public string? OriginalText { get; set; }

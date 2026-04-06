@@ -14,6 +14,6 @@
         public DateTime? BuchungVon { get; set; }
         public DateTime? BuchungBis { get; set; }
         public string? BuchungText { get; set; }
-        public decimal? BuchungZeit { get; set; }
+        public int? BuchungZeit { get; set; }
     }
 }

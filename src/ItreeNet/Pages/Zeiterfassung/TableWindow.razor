@@ -1,3 +1,4 @@
+@using ItreeNet.Data.Extensions
 @inject IKundenService KundenService
 @inject IProjektService ProjektService
 @inject IVorgangService VorgangService
@@ -86,7 +87,7 @@
                         <ValidationMessage For="(() => Buchung.VorgangId)" />
                     </FormField>
 
-                    <FormField Label="Stunden">
+                    <FormField Label="Manuelle Eingabe">
                         <MudSwitch Value="@Buchung!.Stunden" ValueChanged="@((bool val) => OnStundenChanged(val))" Color="Color.Primary" />
                     </FormField>
 
@@ -96,31 +97,38 @@
 
                     @if (Buchung!.Stunden)
                     {
-                        <FormField Label="Zeit">
-                            <MudNumericField @bind-Value="@Buchung!.Zeit" Format="N2" />
-                            <ValidationMessage For="(() => Buchung.Zeit)" />
-                        </FormField>
+                        @if (_minuteStep == 15)
+                        {
+                            <FormField Label="Zeit (Stunden)">
+                                <MudNumericField Value="ZeitAlsStunden" ValueChanged="@((decimal? val) => ZeitAlsStunden = val)" Step="0.25m" Immediate="true" />
+                                <ValidationMessage For="(() => Buchung.Zeit)" />
+                            </FormField>
+                        }
+                        else
+                        {
+                            <FormField Label="Zeit (Minuten)">
+                                <MudNumericField @bind-Value="@Buchung!.Zeit" Step="@(_minuteStep)" Immediate="true" />
+                                <ValidationMessage For="(() => Buchung.Zeit)" />
+                            </FormField>
+                        }
                     }
                     else
                     {
                         <FormField Label="Zeit von">
-                            <MudTimePicker @bind-Time="@ZeitVonAsTimeSpan" MinuteSelectionStep="15" />
+                            <MudTimePicker @bind-Time="@ZeitVonAsTimeSpan" MinuteSelectionStep="@_minuteStep" />
                             <ValidationMessage For="(() => Buchung.ZeitVon)" />
                         </FormField>
 
                         <FormField Label="Zeit bis">
-                            <MudTimePicker @bind-Time="@ZeitBisAsTimeSpan" MinuteSelectionStep="15" />
+                            <MudTimePicker @bind-Time="@ZeitBisAsTimeSpan" MinuteSelectionStep="@_minuteStep" />
                             <ValidationMessage For="(() => Buchung.ZeitBis)" />
                         </FormField>
 
                         <FormField Label="Zeit">
                             @if (Buchung!.ZeitVon != null && Buchung!.ZeitBis != null)
                             {
-                                var zeitVon = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, Buchung.ZeitVon.Value.Hour, Buchung.ZeitVon.Value.Minute, 0);
-                                var zeitBis = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, Buchung.ZeitBis.Value.Hour, Buchung.ZeitBis.Value.Minute, 0);
-                                var hours = (zeitBis - zeitVon).TotalHours;
-                                var berechneteZeit = Convert.ToDecimal(hours.ToString("N2"));
-                                <MudNumericField Value="@berechneteZeit" ReadOnly="true" Format="N2" />
+                                var berechneteZeit = (int)(Buchung.ZeitBis.Value - Buchung.ZeitVon.Value).TotalMinutes;
+                                <MudText>@berechneteZeit.FormatMinuten()</MudText>
                                 <ValidationMessage For="(() => Buchung.Zeit)" />
                             }
                         </FormField>
@@ -182,6 +190,17 @@
     private BuchungValidator _validator = new();
 
     private bool _buttonIsLoading = false;
+    private int _minuteStep = 15;
+
+    private decimal? ZeitAlsStunden
+    {
+        get => Buchung?.Zeit.HasValue == true ? Buchung.Zeit.Value / 60m : null;
+        set
+        {
+            if (Buchung != null)
+                Buchung.Zeit = value.HasValue ? (int)Math.Round(value.Value * 60) : null;
+        }
+    }
 
     // Bridge properties for MudDatePicker (uses DateTime?)
     private DateTime? BuchungDatumAsDateTime => Buchung?.Datum.ToDateTime(new TimeOnly(0, 0, 0));
@@ -217,8 +236,7 @@
     {
         if (Buchung?.ZeitVon != null && Buchung.ZeitBis != null)
         {
-            var hours = (Buchung.ZeitBis.Value - Buchung.ZeitVon.Value).TotalHours;
-            Buchung.Zeit = Convert.ToDecimal(hours.ToString("N2"));
+            Buchung.Zeit = (int)(Buchung.ZeitBis.Value - Buchung.ZeitVon.Value).TotalMinutes;
         }
     }
 
@@ -277,6 +295,7 @@
             await GetProjectsByCustomerId(_kundenId);
             await GetProcessesByProjectId(_projektId);
         }
+        UpdateIntervall();
         _loaded = true;
         StateHasChanged();
     }
@@ -299,6 +318,7 @@
                 await GetProjectsByCustomerId(_kundenId);
                 await GetProcessesByProjectId(_projektId);
             }
+            UpdateIntervall();
             _loaded = true;
             StateHasChanged();
         }
@@ -335,6 +355,14 @@
         _projektId = projektId;
         if (Buchung != null) Buchung.VorgangId = Guid.Empty;
         _vorgaenge = await VorgangService.GetAllProjecIdAsync(projektId);
+        UpdateIntervall();
+    }
+
+    private void UpdateIntervall()
+    {
+        var projekt = _projekte?.FirstOrDefault(p => p.Id == _projektId);
+        _minuteStep = projekt?.BuchungsintervallMinuten ?? 15;
+        _validator.Intervall = _minuteStep;
     }
 
     public async Task Save()

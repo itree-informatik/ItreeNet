@@ -96,6 +96,7 @@ else
                     <PropertyColumn Property="x => x.Nummer" Title="Nummer" />
                     <PropertyColumn Property="x => x.Bezeichnung" Title="Bezeichnung" />
                     <PropertyColumn Property="x => x.Gesamtkosten" Title="Gesamtkosten" />
+                    <PropertyColumn Property="x => x.Gesamtzeit" Title="Gesamtzeit (h)" />
                     <TemplateColumn Title="Aktiv">
                         <CellTemplate Context="item">
                             @if (item.Item.Aktiv)
@@ -122,7 +123,7 @@ else
         }
     }
 
-    @if(_selectedProjekt != null)
+    @if (_selectedProjekt != null)
     {
         <EditForm EditContext="@_editContextProjekt" OnValidSubmit="@OnSaveProjekt">
             <ItreeFluentValidationValidator Validator="@(new ProjektValidator())" DisableAssemblyScanning="true" StrictMode="false" />
@@ -134,11 +135,11 @@ else
                     <MudTextField @bind-Value="@_selectedProjekt!.Bezeichnung" id="textbox_projekt_bezeichnung" />
                 </div>
                 <div class="d-flex justify-content-between mb-2">
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex align-center">
                         <label style="width: 200px" for="textbox_nummer">Nummer</label>
                         <MudTextField @bind-Value="@_selectedProjekt!.Nummer" id="textbox_nummer" />
                     </div>
-                    <div class="d-flex">
+                    <div class="d-flex align-center">
                         <label style="width: 200px" for="textbox_vertragsdauer">Vertragsdauer</label>
                         <MudTextField @bind-Value="@_selectedProjekt!.Vertragsdauer" id="textbox_vertragsdauer" />
                     </div>
@@ -148,19 +149,32 @@ else
                     </div>
                 </div>
                 <div class="d-flex justify-content-between mb-2">
-                    <div class="d-flex">
+                    <div class="d-flex align-center">
                         <label style="width: 200px" for="numerictextbox_gesamtkosten">Gesamtkosten</label>
                         <MudNumericField @bind-Value="@_selectedProjekt.Gesamtkosten" id="numerictextbox_gesamtkosten" />
                     </div>
-                    <div>
+                    <div class="d-flex align-center">
+                        <label style="width: 200px" for="numerictextbox_gesamtzeit">Gesamtzeit (h)</label>
+                        <MudNumericField @bind-Value="@_selectedProjekt.Gesamtzeit" id="numerictextbox_gesamtzeit" />
+                    </div>
+                    <div class="d-flex align-center">
+                        <label style="width: 200px" for="select_intervall">Buchungsintervall</label>
+                        <MudSelect @bind-Value="@_selectedProjekt.BuchungsintervallMinuten" id="select_intervall" Margin="Margin.Dense" Dense="true">
+                            <MudSelectItem T="int?" Value="@((int?)15)">Viertelstündlich</MudSelectItem>
+                            <MudSelectItem T="int?" Value="@((int?)1)">Minütlich</MudSelectItem>
+                        </MudSelect>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <div class="d-flex align-center">
                         <label for="checkbox_pauschal">Pauschal</label>
                         <MudCheckBox @bind-Value="@_selectedProjekt.Pauschal" id="checkbox_pauschal" />
                     </div>
-                    <div>
+                    <div class="d-flex align-center">
                         <label style="width: 150px" for="checkbox_mehrwertsteuer">Mehrwertsteuer</label>
                         <MudCheckBox @bind-Value="@_selectedProjekt.Mehrwertsteuer" id="checkbox_mehrwertsteuer" />
                     </div>
-                    <div>
+                    <div class="d-flex align-center">
                         <label for="checkbox_aktiv">Aktiv</label>
                         <MudCheckBox @bind-Value="@_selectedProjekt.Aktiv" id="checkbox_aktiv" />
                     </div>
@@ -254,7 +268,7 @@ else
             }
         }
 
-        @if(_selectedAktivitaet != null)
+        @if (_selectedAktivitaet != null)
         {
             <EditForm EditContext="@_editContextAktivitaet" OnValidSubmit="@OnSaveAktivitaet">
                 <ItreeFluentValidationValidator Validator="@(new VorgangValidator())" DisableAssemblyScanning="true" StrictMode="false" />
@@ -275,7 +289,7 @@ else
                             <label style="width: 100px" for="switch_stunden">Stunden</label>
                             <MudSwitch T="bool" Value="@_showStunden" Color="Color.Primary" id="switch_stunden" Class="me-2" ValueChanged="@OnSwitch" />
 
-                            <label style="width: 200px" for="numerictextbox_anzahlstunden">@(_showStunden ? "Anzahl Stunden" :"Anzahl Tage")</label>
+                            <label style="width: 200px" for="numerictextbox_anzahlstunden">@(_showStunden ? "Anzahl Stunden" : "Anzahl Tage")</label>
                             <MudNumericField @bind-Value="@_selectedAktivitaet.AnzahlStunden" id="numerictextbox_anzahlstunden" />
                         </div>
                         <div class="d-flex">
@@ -321,18 +335,21 @@ else
                             <PropertyColumn Property="x => x.Mitarbeiter!.Fullname" Title="Mitarbeiter" />
                             <PropertyColumn Property="x => x.Datum" Title="Datum" Format="dd.MM.yyyy" />
                             <PropertyColumn Property="x => x.Buchungstext" Title="Buchungstext" />
-                            <PropertyColumn Property="x => x.Zeit" Title="Zeit">
+                            <TemplateColumn Title="Zeit">
+                                <CellTemplate Context="item">
+                                    @item.Item.Zeit.FormatMinutenAlsZeit()h
+                                </CellTemplate>
                                 <FooterTemplate>
-                                    @(_buchungen?.Sum(b => b.Zeit)) h
+                                    @(_buchungen?.Sum(b => b.Zeit ?? 0).FormatMinutenAlsZeit())h
                                 </FooterTemplate>
-                            </PropertyColumn>
+                            </TemplateColumn>
                         </Columns>
                     </MudDataGrid>
                 }
             </div>
         }
     }
-    <br/>
+    <br />
 
     @*Confirm cancel when changes are not saved*@
     <ConfirmWindow IsVisible="@_isVisibleCancelConfirm" CheckHandler="@CancelConfirm" Type="EnumConfirmType.Cancel" />
@@ -405,7 +422,7 @@ else
 
         MitarbeiterId = (Guid)Benutzer.MitarbeiterId;
 
-        if(KundenId == Guid.Empty)
+        if (KundenId == Guid.Empty)
         {
             _selectedKunde = new Kunde();
             _selectedKunde.Aktiv = true;
@@ -477,16 +494,17 @@ else
         {
             _isVisibleCancelConfirm = true;
         }
-        else{
+        else
+        {
             NavigationManager.NavigateTo("/intern/kunden");
         }
     }
 
     private async Task SelectProjekt(Projekt? model)
     {
-        if(model != null)
+        if (model != null)
         {
-            if(model.Id == Guid.Empty)
+            if (model.Id == Guid.Empty)
             {
                 model.KundeId = KundenId;
                 model.Aktiv = true;
@@ -512,9 +530,9 @@ else
 
     private async Task SelectAktivitaet(Vorgang? model)
     {
-        if(model != null)
+        if (model != null)
         {
-            if(model.Id == Guid.Empty)
+            if (model.Id == Guid.Empty)
             {
                 model.ProjektId = _selectedProjekt!.Id;
                 model.Aktiv = true;

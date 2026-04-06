@@ -162,9 +162,9 @@ namespace ItreeNet.Services
 
                 if (buchungen.Count > 0)
                 {
-                    var buchungenSum = buchungen.Sum(b => b.Zeit);
-                    buchungenSum /= arbeitszeit;
-                    saldo -= buchungenSum ?? decimal.Zero;
+                    var buchungenSumMinuten = buchungen.Sum(b => b.Zeit) ?? 0;
+                    var buchungenSumStunden = buchungenSumMinuten / 60m;
+                    saldo -= buchungenSumStunden / arbeitszeit;
                 }
 
                 // 2) Ferien über Anwesenheit (Typ = Ferien)
@@ -407,12 +407,12 @@ namespace ItreeNet.Services
                 .Select(v => v.Id)
                 .ToList();
 
-            var bookedHoursDict = await context.TBuchung
+            var bookedMinutesDict = await context.TBuchung
                 .AsNoTracking()
                 .Where(b => allVorgangIds.Contains(b.VorgangId))
                 .GroupBy(b => b.VorgangId)
-                .Select(g => new { VorgangId = g.Key, Stunden = g.Sum(b => b.Zeit) })
-                .ToDictionaryAsync(x => x.VorgangId, x => x.Stunden ?? decimal.Zero);
+                .Select(g => new { VorgangId = g.Key, Minuten = g.Sum(b => b.Zeit) })
+                .ToDictionaryAsync(x => x.VorgangId, x => (decimal)(x.Minuten ?? 0) / 60m);
 
             var dashboardProjects = new List<DashboardProjekt>();
             foreach (var projekt in tProjekte)
@@ -427,7 +427,7 @@ namespace ItreeNet.Services
                     KundenName = projekt.Kunde.Kundenname,
                     Team = projekt.Kunde.Team?.Bezeichnung,
                     AnzahlStunden = relevantVorgaenge.Sum(v => v.AnzahlStunden),
-                    GebuchteStunden = relevantVorgaenge.Sum(v => bookedHoursDict.TryGetValue(v.Id, out var h) ? h : decimal.Zero)
+                    GebuchteStunden = relevantVorgaenge.Sum(v => bookedMinutesDict.TryGetValue(v.Id, out var h) ? h : decimal.Zero)
                 };
 
                 dashboardProjects.Add(dashboardprojekt);
@@ -530,16 +530,18 @@ namespace ItreeNet.Services
                 .Where(b => b.MitarbeiterId == mitarbeiterId && b.Datum >= date);
 
             // externe buchungen, also alle, die nicht im Kunden itree erstellt worden sind
-            var extBuchungen = await myQuery
+            var extMinuten = await myQuery
                 .Where(b => !b.Vorgang.Projekt.Kunde.Intern)
                 .Select(b => b.Zeit)
-                .SumAsync() ?? decimal.Zero;
+                .SumAsync() ?? 0;
+            var extBuchungen = extMinuten / 60m;
 
             // interne buchungen, ausser Ferien und Krankheit
-            var intBuchungen = await myQuery
+            var intMinuten = await myQuery
                 .Where(b => b.Vorgang.Projekt.Kunde.Intern && b.Vorgang.Projekt.Bezeichnung != "Abwesenheiten")
                 .Select(b => b.Zeit)
-                .SumAsync() ?? decimal.Zero;
+                .SumAsync() ?? 0;
+            var intBuchungen = intMinuten / 60m;
 
             var totalBuchungen = extBuchungen + intBuchungen;
             var extProzent = totalBuchungen > 0 ? (extBuchungen / totalBuchungen) * 100 : 0;
@@ -614,16 +616,18 @@ namespace ItreeNet.Services
                     .Where(b => b.Datum >= date && teamMitarbeiter.Contains(b.MitarbeiterId));
 
                 // externe buchungen, also alle, die nicht im Kunden itree erstellt worden sind
-                var extBuchungen = await myQuery
+                var extMinuten = await myQuery
                     .Where(b => !b.Vorgang.Projekt.Kunde.Intern)
                     .Select(b => b.Zeit)
-                    .SumAsync() ?? decimal.Zero;
+                    .SumAsync() ?? 0;
+                var extBuchungen = extMinuten / 60m;
 
                 // interne buchungen, ausser Ferien und Krankheit
-                var intBuchungen = await myQuery
+                var intMinuten = await myQuery
                     .Where(b => b.Vorgang.Projekt.Kunde.Intern && b.Vorgang.Projekt.Bezeichnung != "Abwesenheiten")
                     .Select(b => b.Zeit)
-                    .SumAsync() ?? decimal.Zero;
+                    .SumAsync() ?? 0;
+                var intBuchungen = intMinuten / 60m;
 
                 var totalBuchungen = extBuchungen + intBuchungen;
                 var extProzent = totalBuchungen > 0 ? (extBuchungen / totalBuchungen) * 100 : 0;

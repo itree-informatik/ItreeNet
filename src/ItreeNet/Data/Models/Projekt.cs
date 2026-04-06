@@ -11,6 +11,8 @@
         public bool Pauschal { get; set; }
         public string? Vertragsdauer { get; set; }
         public bool Mehrwertsteuer { get; set; }
+        public int? BuchungsintervallMinuten { get; set; }
+        public int? Gesamtzeit { get; set; }
         public bool EmailGesendet80 { get; set; }
         public bool EmailGesendet90 { get; set; }
         public bool EmailGesendet100 { get; set; }

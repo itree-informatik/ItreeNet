@@ -9,7 +9,7 @@
         public DateOnly? DatumBis { get; set; }
         public DateTime? ZeitVon { get; set; }
         public DateTime? ZeitBis { get; set; }
-        public decimal? Zeit { get; set; }
+        public int? Zeit { get; set; }
         public string Buchungstext { get; set; } = string.Empty;
         public bool Stunden { get; set; }
         public DateTime? Abgerechnet { get; set; }
@@ -18,7 +18,7 @@
         public DateTime? ChangedOn { get; set; }
         public Guid? OriginalVorgangId { get; set; }
         public DateOnly? OriginalDatum { get; set; }
-        public decimal? OriginalZeit { get; set; }
+        public int? OriginalZeit { get; set; }
         public string? OriginalText { get; set; }
 
         public Mitarbeiter? ChangedByMitarbeiter { get; set; }
