@@ -25,7 +25,7 @@ namespace ItreeNet.Services
         {
             _context = context;
             _userService = userService;
-            var serialKey = config["LicenseKeys:GEMBOX_DOCUMENT_KEY"]?.Trim();
+            var serialKey = config["LicenseKeys:Gembox"]?.Trim();
             ComponentInfo.SetLicense(serialKey);
             _tempVerzeichnis = $"{Globals.FileStorePath}/Temp/{_userService.CurrentUser!.MitarbeiterId!.Value}/";
             _vorlagenVerzeichnis = $"{Globals.FileStorePath}/Vorlagen/";
