@@ -10,7 +10,6 @@
 @inject IAnwesenheitService AnwesenheitService
 @inject IDokumentService DokumentService
 @inject IJSRuntime JsRuntime
-@using ItreeNet.Data.Extensions
 @inject ISnackbar Snackbar
 @layout Layout
 
@@ -284,10 +283,10 @@ else
                         <PropertyColumn Property="x => x.Mitarbeiter!.Fullname" Title="Mitarbeiter" Groupable="true" />
                         <TemplateColumn Title="Zeit">
                             <CellTemplate Context="item">
-                                @item.Item.Zeit.FormatMinutenAlsZeit()h
+                                @item.Item.Zeit
                             </CellTemplate>
                             <FooterTemplate>
-                                @_buchungenZeitSum.FormatMinutenAlsZeit()h
+                                @_buchungenZeitSum h
                             </FooterTemplate>
                         </TemplateColumn>
                         <PropertyColumn Property="x => x.Buchungstext" Title="Buchungstext" />
@@ -443,7 +442,7 @@ else
     private List<Projekt>? _projekte;
     private List<Vorgang>? _aktivitaeten;
     private List<Buchung>? _buchungen;
-    private int _buchungenZeitSum;
+    private decimal _buchungenZeitSum;
 
     private List<Projekt>? _projekteAusw;
     private Guid? _selectedProjektAusw;
@@ -528,7 +527,7 @@ else
     {
         _isLoadingBookings = true;
         _buchungen = await BuchungsService.SucheBuchungAsync(_selectedMitarbeiter, _selectedTeam, _selectedKunde, _selectedProjekt, _selectedAktivitaet, _from, _to);
-        _buchungenZeitSum = _buchungen?.Sum(b => b.Zeit ?? 0) ?? 0;
+        _buchungenZeitSum = _buchungen?.Sum(b => b.Zeit) ?? 0;
         _isLoadingBookings = false;
     }
 

@@ -25,7 +25,7 @@ namespace ItreeNet.Services
         {
             _context = context;
             _userService = userService;
-            var serialKey = config["LicenseKeys:GEMBOX_DOCUMENT_KEY"]?.Trim();
+            var serialKey = config["LicenseKeys:Gembox"]?.Trim();
             ComponentInfo.SetLicense(serialKey);
             _tempVerzeichnis = $"{Globals.FileStorePath}/Temp/{_userService.CurrentUser!.MitarbeiterId!.Value}/";
             _vorlagenVerzeichnis = $"{Globals.FileStorePath}/Vorlagen/";
@@ -105,14 +105,14 @@ namespace ItreeNet.Services
                 $"{tempVerzeichnis}{liste[0].KundeName}_{liste[0].ProjektNummer.Replace("/", "-")}_{liste[0].MitarbeiterName.Replace(" ", string.Empty)}_{reportDatum.Replace(" ", string.Empty)}.pdf";
             var zusammenzugliste = liste.Where(b => b.ProjektId == proId).OrderBy(o => o.VorgangBezeichnung)
                 .ToList();
-            var totalMinuten = zusammenzugliste.Where(v => v.BuchungZeit.HasValue && v.ProjektId == proId && v.MitarbeiterId == mitId).Sum(v => v.BuchungZeit!.Value);
+            var total = zusammenzugliste.Where(v => v.BuchungZeit.HasValue && v.ProjektId == proId && v.MitarbeiterId == mitId).Sum(v => v.BuchungZeit!.Value);
 
             foreach (var buc in liste)
             {
                 if (buc.ProjektId != proId || buc.MitarbeiterId != mitId)
                 {
                     detailListe.Add(new[] { "T1" });
-                    detailListe.Add(new[] { "T2", null!, totalMinuten.FormatMinutenAlsZeit() });
+                    detailListe.Add(new[] { "T2", null!, total.ToString("N2") });
                     CreateDocument(dictonary, def, detailListe, def, totalListe, vorlage, dokumentname);
                     proId = buc.ProjektId;
                     mitId = buc.MitarbeiterId;
@@ -121,7 +121,7 @@ namespace ItreeNet.Services
                     zusammenzugliste = liste.Where(b => b.ProjektId == proId && b.MitarbeiterId == mitId)
                         .OrderBy(o => o.VorgangBezeichnung)
                         .ToList();
-                    totalMinuten = zusammenzugliste.Where(v => v.BuchungZeit.HasValue).Sum(v => v.BuchungZeit!.Value);
+                    total = zusammenzugliste.Where(v => v.BuchungZeit.HasValue).Sum(v => v.BuchungZeit!.Value);
                     totalListe = FillTotalListe(zusammenzugliste);
                     datum = DateOnly.FromDateTime(DateTime.MinValue);
                     dokumentname =
@@ -139,13 +139,13 @@ namespace ItreeNet.Services
                     buc.BuchungBis.HasValue ? buc.BuchungBis.Value.ToString("HH:mm") : string.Empty,
                     buc.VorgangBezeichnung,
                     buc.BuchungText,
-                    buc.BuchungZeit.HasValue ? buc.BuchungZeit.Value.FormatMinutenAlsZeit() : string.Empty
+                    buc.BuchungZeit.HasValue ? buc.BuchungZeit.Value.ToString("N2") : string.Empty
                 });
                 datum = buc.BuchungDatum;
             }
 
             detailListe.Add(new[] { "T1" });
-            detailListe.Add(new[] { "T2", null!, totalMinuten.FormatMinutenAlsZeit() });
+            detailListe.Add(new[] { "T2", null!, total.ToString("N2") });
             CreateDocument(dictonary, def, detailListe, def, totalListe, vorlage, dokumentname);
 
             // Dokumente in zip für Download
@@ -352,9 +352,9 @@ namespace ItreeNet.Services
             var vorBezeichnung = liste[0].VorgangBezeichnung;
             var mitId = liste[0].MitarbeiterId;
             var mitarbeiter = liste[0].MitarbeiterName;
-            int totalMitMin = 0;
-            int totalVorMin = 0;
-            int totalProMin = 0;
+            decimal totalMit = 0;
+            decimal totalVor = 0;
+            decimal totalPro = 0;
 
             section.Blocks.Add(header.Clone(true));
             section.Blocks.Add(absatz.Clone(true));
@@ -375,7 +375,7 @@ namespace ItreeNet.Services
                     detailListe.Insert(0, new[] { "H2" });
                     detailListe.Insert(0, new[] { "H1" });
                     detailListe.Add(new[] { "T1" });
-                    detailListe.Add(new[] { "T2", null!, totalMitMin.FormatMinutenAlsZeit() });
+                    detailListe.Add(new[] { "T2", null!, totalMit.ToString("N2") });
                     FillTable("Mitarbeiter", def, detailListe);
                     var table = _dokument.GetChildElements(true, ElementType.Table)
                         .Cast<Table>().FirstOrDefault(t => t.Metadata.Title == "Mitarbeiter");
@@ -383,7 +383,7 @@ namespace ItreeNet.Services
                     {
                         table.Metadata.Title = string.Empty;
                     }
-                    totalMitMin = 0;
+                    totalMit = 0;
                     mitId = buchung.MitarbeiterId;
                     mitarbeiter = buchung.MitarbeiterName;
                     detailListe.Clear();
@@ -392,9 +392,9 @@ namespace ItreeNet.Services
                     {
                         section.Blocks.Add(totalVorgang.Clone(true));
                         InsertValues(new Dictionary<string, string>
-                            { {"[%VorgangBezeichnung%]", vorBezeichnung }, { "[%Total%]", totalVorMin.FormatMinutenAlsZeit() } });
+                            { {"[%VorgangBezeichnung%]", vorBezeichnung }, { "[%Total%]", totalVor.ToString("N2") } });
                         section.Blocks.Add(absatz.Clone(true));
-                        totalVorMin = 0;
+                        totalVor = 0;
                         vorBezeichnung = buchung.VorgangBezeichnung;
                         vorId = buchung.VorgangId;
 
@@ -415,11 +415,11 @@ namespace ItreeNet.Services
                     buchung.BuchungVon.HasValue ? buchung.BuchungVon.Value.ToString("HH:mm") : string.Empty,
                     buchung.BuchungBis.HasValue ? buchung.BuchungBis.Value.ToString("HH:mm") : string.Empty,
                     buchung.BuchungText,
-                    buchung.BuchungZeit.HasValue ? buchung.BuchungZeit.Value.FormatMinutenAlsZeit() : string.Empty
+                    buchung.BuchungZeit.HasValue ? buchung.BuchungZeit.Value.ToString("N2") : string.Empty
                 });
-                totalMitMin += buchung.BuchungZeit ?? 0;
-                totalVorMin += buchung.BuchungZeit ?? 0;
-                totalProMin += buchung.BuchungZeit ?? 0;
+                totalMit += buchung.BuchungZeit ?? 0;
+                totalVor += buchung.BuchungZeit ?? 0;
+                totalPro += buchung.BuchungZeit ?? 0;
             }
             section.Blocks.Add(ma.Clone(true));
             InsertValues(new Dictionary<string, string> { { "[%Mitarbeiter%]", mitarbeiter } });
@@ -427,18 +427,18 @@ namespace ItreeNet.Services
             detailListe.Insert(0, new[] { "H2" });
             detailListe.Insert(0, new[] { "H1" });
             detailListe.Add(new[] { "T1" });
-            detailListe.Add(new[] { "T2", null!, totalMitMin.FormatMinutenAlsZeit() });
+            detailListe.Add(new[] { "T2", null!, totalMit.ToString("N2") });
             FillTable("Mitarbeiter", def, detailListe);
 
             section.Blocks.Add(absatz.Clone(true));
             section.Blocks.Add(totalVorgang.Clone(true));
             InsertValues(new Dictionary<string, string>
-                { {"[%VorgangBezeichnung%]", vorBezeichnung }, { "[%Total%]", totalVorMin.FormatMinutenAlsZeit() } });
+                { {"[%VorgangBezeichnung%]", vorBezeichnung }, { "[%Total%]", totalVor.ToString("N2") } });
 
             section.Blocks.Add(absatz.Clone(true));
             section.Blocks.Add(totalProjekt.Clone(true));
             InsertValues(new Dictionary<string, string>
-                { {"[%ProjektBezeichnung%]", liste[0].ProjektBezeichnung}, { "[%Total%]", totalProMin.FormatMinutenAlsZeit() } });
+                { {"[%ProjektBezeichnung%]", liste[0].ProjektBezeichnung}, { "[%Total%]", totalPro.ToString("N2") } });
 
             Save(dokumentname);
             return dokumentname;
@@ -611,16 +611,16 @@ namespace ItreeNet.Services
         {
             var vorListe = buchungsListe
                 .GroupBy(b => b.VorgangBezeichnung)
-                .Select(l => new { VorgangName = l.Key, SummeMinuten = l.Sum(b => b.BuchungZeit ?? 0) })
+                .Select(l => new { VorgangName = l.Key, Summe = l.Sum(b => b.BuchungZeit) })
                 .ToList()
                 .OrderBy(o => o.VorgangName);
 
-            var result = vorListe.Select(v => new[] { "D", null!, v.VorgangName, v.SummeMinuten.FormatMinutenAlsZeit() }).ToList();
-            var totalMinuten = buchungsListe.Where(v => v.BuchungZeit.HasValue).Sum(v => v.BuchungZeit!.Value);
+            var result = vorListe.Select(v => new[] { "D", null!, v.VorgangName, $"{v.Summe:N2}" }).ToList();
+            var total = buchungsListe.Where(v => v.BuchungZeit.HasValue).Sum(v => v.BuchungZeit!.Value);
             result.Insert(0, new[] { "H2" });
             result.Insert(0, new[] { "H1" });
             result.Add(new[] { "T1" });
-            result.Add(new[] { "T2", null!, totalMinuten.FormatMinutenAlsZeit() });
+            result.Add(new[] { "T2", null!, total.ToString("N2") });
             return result!;
         }
 

@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using ItreeNet.Data.Models;
 
 namespace ItreeNet.Data.Validators
@@ -6,8 +6,8 @@ namespace ItreeNet.Data.Validators
     public class BuchungValidator : AbstractValidator<Buchung>
     {
         /// <summary>
-        /// Buchungsintervall in Minuten (z.B. 15 = viertelstündig, 1 = minütig).
-        /// Wird vom UI gesetzt wenn das Projekt bekannt ist.
+        /// Buchungsintervall in Minuten (z.B. 15 = viertelstündig).
+        /// null = keine Validierung. Wird vom UI gesetzt wenn das Projekt bekannt ist.
         /// </summary>
         public int? Intervall { get; set; } = 15;
 
@@ -30,11 +30,11 @@ namespace ItreeNet.Data.Validators
             {
                 RuleFor(x => x.ZeitVon).Custom((date, context) =>
                 {
-                    if (date is null || Intervall is null or 1) return;
+                    if (date is null || Intervall is null) return;
                     var minutes = date.Value.Minute;
                     if (minutes % Intervall.Value != 0)
                     {
-                        context.AddFailure($"Bitte nur im {Intervall}-Minuten-Takt raportieren.");
+                        context.AddFailure("Bitte nur viertelstündig raportieren.");
                     }
                 });
             });
@@ -43,11 +43,11 @@ namespace ItreeNet.Data.Validators
             {
                 RuleFor(x => x.ZeitBis).Custom((date, context) =>
                 {
-                    if (date is null || Intervall is null or 1) return;
+                    if (date is null || Intervall is null) return;
                     var minutes = date.Value.Minute;
                     if (minutes % Intervall.Value != 0)
                     {
-                        context.AddFailure($"Bitte nur im {Intervall}-Minuten-Takt raportieren.");
+                        context.AddFailure("Bitte nur viertelstündig raportieren.");
                     }
                 });
             });
@@ -56,10 +56,12 @@ namespace ItreeNet.Data.Validators
             {
                 RuleFor(x => x.Zeit).Custom((zeit, context) =>
                 {
-                    if (zeit is null || Intervall is null or 1) return;
-                    if (zeit.Value % Intervall.Value != 0)
+                    if (zeit is null || Intervall is null) return;
+
+                    // Prüft, ob Zeit ein Vielfaches von 0.25 ist (z.B. 0.25, 0.5, 0.75, 1.0, ...)
+                    if ((zeit.Value * 100) % 25 != 0)
                     {
-                        context.AddFailure($"Bitte nur im {Intervall}-Minuten-Takt raportieren.");
+                        context.AddFailure("Bitte nur viertelstündig raportieren.");
                     }
                 });
             });
@@ -67,7 +69,7 @@ namespace ItreeNet.Data.Validators
             When(b => b.VorgangId == Guid.Parse("4F8ACC08-6C32-4C84-A3FB-2C17D1274AA1"), () =>
             {
                 RuleFor(x => x.Zeit)
-                    .GreaterThanOrEqualTo(240).WithMessage("Bitte mindestens 4h (240min) als Ferien eingeben");
+                    .GreaterThanOrEqualTo(4).WithMessage("Bitte mindestens 4h als Ferien eingeben");
             });
         }
     }

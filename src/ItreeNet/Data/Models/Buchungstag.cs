@@ -14,21 +14,18 @@ namespace ItreeNet.Data.Models
 
         public string? Weekday { get; set; } = null!;
         public DateOnly Date { get; set; }
-        public int TotalMinutes
+        public decimal? TotalHours
         {
             get
             {
                 if (Details != null && Details.Any())
                 {
-                    return Details.Where(a => !a.Vorgang!.Gleitzeit).Sum(h => h.Zeit ?? 0);
+                    return Details.Where(a => !a.Vorgang!.Gleitzeit).Sum(h => h.Zeit);
                 }
-                return 0;
+                return decimal.Zero;
+
             }
         }
-        /// <summary>
-        /// TotalMinutes als Dezimalstunden (für Anwesenheit-Übertragung).
-        /// </summary>
-        public decimal TotalHours => TotalMinutes / 60m;
         public decimal? FeiertagReduktion
         {
             get

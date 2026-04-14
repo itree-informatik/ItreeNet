@@ -1,4 +1,3 @@
-@using ItreeNet.Data.Extensions
 @inject IKundenService KundenService
 @inject IProjektService ProjektService
 @inject IVorgangService VorgangService
@@ -97,20 +96,10 @@
 
                     @if (Buchung!.Stunden)
                     {
-                        @if (_minuteStep == 15)
-                        {
-                            <FormField Label="Zeit (Stunden)">
-                                <MudNumericField Value="ZeitAlsStunden" ValueChanged="@((decimal? val) => ZeitAlsStunden = val)" Step="0.25m" Immediate="true" />
-                                <ValidationMessage For="(() => Buchung.Zeit)" />
-                            </FormField>
-                        }
-                        else
-                        {
-                            <FormField Label="Zeit (Minuten)">
-                                <MudNumericField @bind-Value="@Buchung!.Zeit" Step="@(_minuteStep)" Immediate="true" />
-                                <ValidationMessage For="(() => Buchung.Zeit)" />
-                            </FormField>
-                        }
+                        <FormField Label="Zeit">
+                            <MudNumericField @bind-Value="@Buchung!.Zeit" Format="N2" />
+                            <ValidationMessage For="(() => Buchung.Zeit)" />
+                        </FormField>
                     }
                     else
                     {
@@ -127,8 +116,11 @@
                         <FormField Label="Zeit">
                             @if (Buchung!.ZeitVon != null && Buchung!.ZeitBis != null)
                             {
-                                var berechneteZeit = (int)(Buchung.ZeitBis.Value - Buchung.ZeitVon.Value).TotalMinutes;
-                                <MudText>@berechneteZeit.FormatMinuten()</MudText>
+                                var zeitVon = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, Buchung.ZeitVon.Value.Hour, Buchung.ZeitVon.Value.Minute, 0);
+                                var zeitBis = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, Buchung.ZeitBis.Value.Hour, Buchung.ZeitBis.Value.Minute, 0);
+                                var hours = (zeitBis - zeitVon).TotalHours;
+                                var berechneteZeit = Convert.ToDecimal(hours.ToString("N2"));
+                                <MudNumericField Value="@berechneteZeit" ReadOnly="true" Format="N2" />
                                 <ValidationMessage For="(() => Buchung.Zeit)" />
                             }
                         </FormField>
@@ -192,16 +184,6 @@
     private bool _buttonIsLoading = false;
     private int _minuteStep = 15;
 
-    private decimal? ZeitAlsStunden
-    {
-        get => Buchung?.Zeit.HasValue == true ? Buchung.Zeit.Value / 60m : null;
-        set
-        {
-            if (Buchung != null)
-                Buchung.Zeit = value.HasValue ? (int)Math.Round(value.Value * 60) : null;
-        }
-    }
-
     // Bridge properties for MudDatePicker (uses DateTime?)
     private DateTime? BuchungDatumAsDateTime => Buchung?.Datum.ToDateTime(new TimeOnly(0, 0, 0));
     private DateTime? DatumBisAsDateTime => Buchung?.DatumBis?.ToDateTime(new TimeOnly(0, 0, 0));
@@ -236,7 +218,8 @@
     {
         if (Buchung?.ZeitVon != null && Buchung.ZeitBis != null)
         {
-            Buchung.Zeit = (int)(Buchung.ZeitBis.Value - Buchung.ZeitVon.Value).TotalMinutes;
+            var hours = (Buchung.ZeitBis.Value - Buchung.ZeitVon.Value).TotalHours;
+            Buchung.Zeit = Convert.ToDecimal(hours.ToString("N2"));
         }
     }
 
@@ -361,8 +344,16 @@
     private void UpdateIntervall()
     {
         var projekt = _projekte?.FirstOrDefault(p => p.Id == _projektId);
-        _minuteStep = projekt?.BuchungsintervallMinuten ?? 15;
-        _validator.Intervall = _minuteStep;
+        if (projekt != null && _projektId != Guid.Empty)
+        {
+            _minuteStep = projekt.BuchungsintervallMinuten ?? 1;
+            _validator.Intervall = projekt.BuchungsintervallMinuten;
+        }
+        else
+        {
+            _minuteStep = 15;
+            _validator.Intervall = 15;
+        }
     }
 
     public async Task Save()

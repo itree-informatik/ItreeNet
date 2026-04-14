@@ -188,12 +188,16 @@ namespace ItreeNet.Services
         {
             await using var context = await _dbFactory.CreateDbContextAsync();
 
-            var bookedMinutes = await context.TBuchung
+            var bookedHours = await context.TBuchung
                 .AsNoTracking()
                 .Where(b => b.VorgangId == vorgangId)
                 .SumAsync(b => b.Zeit);
 
-            return bookedMinutes.HasValue ? bookedMinutes.Value / 60m : decimal.Zero;
+            if (bookedHours == null)
+            {
+                return decimal.Zero;
+            }
+            return (decimal)bookedHours;
         }
 
         private async Task<List<Vorgang>> GetBookedTimeOfVorgang(List<Vorgang> list)
@@ -203,15 +207,15 @@ namespace ItreeNet.Services
             await using var context = await _dbFactory.CreateDbContextAsync();
 
             var ids = list.Select(v => v.Id).ToList();
-            var bookedMinutesDict = await context.TBuchung
+            var bookedHoursDict = await context.TBuchung
                 .AsNoTracking()
                 .Where(b => ids.Contains(b.VorgangId))
                 .GroupBy(b => b.VorgangId)
-                .Select(g => new { VorgangId = g.Key, Minuten = g.Sum(b => b.Zeit) })
-                .ToDictionaryAsync(x => x.VorgangId, x => (x.Minuten ?? 0) / 60m);
+                .Select(g => new { VorgangId = g.Key, Stunden = g.Sum(b => b.Zeit) })
+                .ToDictionaryAsync(x => x.VorgangId, x => x.Stunden ?? decimal.Zero);
 
             foreach (var item in list)
-                item.GebuchteStunden = bookedMinutesDict.TryGetValue(item.Id, out var h) ? h : decimal.Zero;
+                item.GebuchteStunden = bookedHoursDict.TryGetValue(item.Id, out var h) ? h : decimal.Zero;
 
             return list;
         }
