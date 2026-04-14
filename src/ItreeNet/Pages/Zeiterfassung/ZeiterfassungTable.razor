@@ -1,5 +1,4 @@
 @using System.Globalization
-@using ItreeNet.Data.Extensions
 @inject IBuchungsService BuchungsService
 @inject IAnwesenheitService AnwesenheitService
 @inject IPensumService PensumService
@@ -58,8 +57,9 @@ else
                         <div style="width: 200px;">
                             Wochenstunden gesamt:
                         </div>
-                        <div class="d-flex flex-row align-items-center" style="gap: 5px; width: 80px; justify-content: flex-end;">
-                            <span style="color: green;">@TimeBookingsTotalMinutes.FormatMinutenAlsZeit()h</span>
+                        <div class="d-flex flex-row align-items-center" style="gap: 5px; width: 65px; justify-content: flex-end;">
+                            <span style="color: green;">@TimeBookingsTotalHours?.ToString("N2")</span>
+                            <span>h</span>
                         </div>
                         <div class="mx-6" style="width: 20px;"></div>
                         <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Color="Color.Primary" />
@@ -89,11 +89,12 @@ else
                                 @daily.Weekday
                                 <strong>(@daily.Date.ToString("dd.MM.yyyy"))</strong>
                             </div>
-                            <div class="d-flex flex-row align-items-center" style="gap: 5px; width: 80px; justify-content: flex-end;">
-                                <span style="color: green;">@daily.TotalMinutes.FormatMinutenAlsZeit()h</span>
+                            <div class="d-flex flex-row align-items-center" style="gap: 5px; width: 65px; justify-content: flex-end;">
+                                <span style="color: green;">@daily.TotalHours?.ToString("N2")</span>
+                                <span>h</span>
                             </div>
                             <div style="width: 20px;" class="mx-6">
-                                @if (daily.TotalMinutes > 0 && AllBookingsQuarterHourly(daily))
+                                @if (daily.TotalHours > 0 && AllBookingsQuarterHourly(daily))
                                 {
                                     <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Color="Color.Primary" Class="pointer" title="Buchungszeit in Anwesenheit übertragen" @onclick="@(() => TransferDayToAnwesenheit(daily))" />
                                 }
@@ -133,13 +134,13 @@ else
                                 {
                                     var stunden = details.Where(v => v.Vorgang != null && v.Vorgang.Gleitzeit);
                                     <div>
-                                            Bezug Gleitzeit: @stunden.Sum(s => s.Zeit ?? 0).FormatMinutenAlsZeit()h
+                                            Bezug Gleitzeit: @stunden.Sum(s => s.Zeit)
                                     </div>
                                 }
 
                                 if (daily.FeiertagReduktion != null)
                                 {
-                                    <div class="pl-2" style="color: dodgerblue;">
+                                    <div>
                                         Feiertagsreduktion: @daily.FeiertagReduktion h
                                     </div>
                                 }
@@ -182,7 +183,7 @@ else
 
                                             <td class="@tdclass">@buchung.Vorgang!.Bezeichnung</td>
 
-                                            <td class="@tdclass">@buchung.Zeit.FormatMinutenAlsZeit()h</td>
+                                            <td class="@tdclass">@buchung.Zeit?.ToString("N2")</td>
 
                                             <td class="@tdclass">@buchung.Buchungstext</td>
                                             <td class="@tdclass">
@@ -219,9 +220,9 @@ else
                                                                             }
                                                                             <tr><td>Aktivität</td><td>@buchung.OriginalVorgang.Bezeichnung</td></tr>
                                                                         }
-                                                                        @if (buchung.OriginalZeit.HasValue)
+                                                                        @if (!string.IsNullOrEmpty(buchung.OriginalZeit?.ToString()))
                                                                         {
-                                                                            <tr><td>Zeit</td><td>@buchung.OriginalZeit.FormatMinutenAlsZeit()h</td></tr>
+                                                                            <tr><td>Zeit</td><td>@buchung.OriginalZeit</td></tr>
                                                                         }
                                                                         @if (!string.IsNullOrEmpty(buchung.OriginalText))
                                                                         {
@@ -285,7 +286,7 @@ else
     public Guid MitarbeiterId { get; set; }
 
     // properties
-    private int TimeBookingsTotalMinutes => _timeBookingList?.Sum(x => x.TotalMinutes) ?? 0;
+    private decimal? TimeBookingsTotalHours => _timeBookingList != null ? _timeBookingList.Sum(x => x.TotalHours) : 0;
     private decimal AnwesenheitTotalHours => _anwesenheitMap.Values.Sum();
     private Buchung? SelectedItem { get; set; }
     private Buchung? DeletedItem { get; set; }
