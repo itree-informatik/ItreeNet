@@ -61,7 +61,7 @@ Struktur der `secrets.json` (Beispielwerte):
   },
   "LicenseKeys": {
     "AutoMapper": "your-automapper-license-key",
-    "GEMBOX_DOCUMENT_KEY": "your-gembox-license-key"
+    "GemBox": "your-gembox-license-key"
   }
 }
 ```
