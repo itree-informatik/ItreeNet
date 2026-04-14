@@ -32,7 +32,7 @@ WORKDIR /app
 ARG AUTOMAPPER_LICENSEKEY
 ARG GEMBOX_LICENSEKEY
 ENV LicenseKeys__AutoMapper=$AUTOMAPPER_LICENSEKEY
-ENV LicenseKeys__GEMBOX_DOCUMENT_KEY=$GEMBOX_LICENSEKEY
+ENV LicenseKeys__Gembox=$GEMBOX_LICENSEKEY
 
 # Copy published solution
 COPY --from=build /app/publish .
