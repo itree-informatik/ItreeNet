@@ -72,6 +72,35 @@ else
         </div>
     </div>
 
+    <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow mt-2" style="overflow: visible;">
+        <div class="text-gray-800">Arbeitsrapport neu erstellen</div>
+        <hr class="mt-1" />
+        <div class="d-flex gap-3 align-items-end">
+            <div>
+                <label style="white-space:nowrap;">Abrechnung vom</label>
+                <MudSelect T="DateOnly?" @bind-Value="_selectedAbrechnungsdatum" Margin="Margin.Dense">
+                    @foreach (var datum in _abrechnungsdaten ?? [])
+                    {
+                        <MudSelectItem Value="@((DateOnly?)datum)">@datum.ToString("dd.MM.yyyy")</MudSelectItem>
+                    }
+                </MudSelect>
+            </div>
+            @if (_isLoadingArbeitsrapportAbgerechnet)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" Size="Size.Small">
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
+                    Arbeitsrapport neu erstellen
+                </MudButton>
+            }
+            else
+            {
+                <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Replay" OnClick="@ErstelleArbeitsrapporteAbgerechnetAsync" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="@(_selectedAbrechnungsdatum == null)">
+                    Arbeitsrapport neu erstellen
+                </MudButton>
+            }
+        </div>
+    </div>
+
     <div class="box bg-@Benutzer!.ThemeMode.ToString()!.ToLower() shadow mt-2">
         <div class="text-gray-800">Projektübersicht erstellen</div>
         <hr class="mt-1" />
@@ -432,9 +461,12 @@ else
     private bool _isLoadingDownload;
     private bool _isLoadingArbeitsrapport;
     private bool _isLoadingAbrechnung;
+    private bool _isLoadingArbeitsrapportAbgerechnet;
     private bool _isLoadingAnwesenheit;
 
     private DateTime? _abrechnungsDatum;
+    private List<DateOnly>? _abrechnungsdaten;
+    private DateOnly? _selectedAbrechnungsdatum;
 
     private List<MitarbeiterModel>? _mitarbeiter;
     private List<Team>? _teams;
@@ -518,6 +550,7 @@ else
         }
         _kundenAusw = await KundenService.GetAllActiveAsync();
         _projekteAusw = new List<Projekt>();
+        _abrechnungsdaten = await BuchungsService.GetAbrechnungsdatenAsync();
     }
 
     /// <summary>
@@ -592,7 +625,7 @@ else
 
         try
         {
-            await BuchungsService.SetAbgerechnetAsync();
+            await BuchungsService.SetAbgerechnetAsync(DateOnly.FromDateTime(_abrechnungsDatum!.Value));
             Snackbar.Add("Abrechnung erfolgreich durchgeführt", Severity.Success);
         }
         catch (Exception ex)
@@ -601,6 +634,29 @@ else
         }
 
         _isLoadingAbrechnung = false;
+        _abrechnungsdaten = await BuchungsService.GetAbrechnungsdatenAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ErstelleArbeitsrapporteAbgerechnetAsync()
+    {
+        if (_selectedAbrechnungsdatum == null)
+            return;
+
+        _isLoadingArbeitsrapportAbgerechnet = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var filePath = await DokumentService.CreateArbeitsrapporteAbgerechnet(_selectedAbrechnungsdatum.Value);
+            await DownloadFileAsync(filePath);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+
+        _isLoadingArbeitsrapportAbgerechnet = false;
         await InvokeAsync(StateHasChanged);
     }
 

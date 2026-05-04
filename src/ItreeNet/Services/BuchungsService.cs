@@ -511,11 +511,11 @@ namespace ItreeNet.Services
             await context.SaveChangesAsync();
         }
 
-        public async Task SetAbgerechnetAsync()
+        public async Task SetAbgerechnetAsync(DateOnly bis)
         {
             await using var context = await _dbFactory.CreateDbContextAsync();
             var offeneBuchungen = await context.TBuchung
-                .Where(b => b.Abgerechnet == null && !b.Provisorisch)
+                .Where(b => b.Abgerechnet == null && !b.Provisorisch && b.Datum <= bis)
                 .ToListAsync();
 
             var heute = DateTime.UtcNow;
@@ -525,6 +525,18 @@ namespace ItreeNet.Services
             }
 
             await context.SaveChangesAsync();
+        }
+
+        public async Task<List<DateOnly>> GetAbrechnungsdatenAsync()
+        {
+            await using var context = await _dbFactory.CreateDbContextAsync();
+            var daten = await context.TBuchung
+                .Where(b => b.Abgerechnet.HasValue)
+                .Select(b => b.Abgerechnet!.Value.Date)
+                .Distinct()
+                .OrderByDescending(d => d)
+                .ToListAsync();
+            return daten.Select(DateOnly.FromDateTime).ToList();
         }
 
         public async Task SetNichtProvisorischAsync(List<Guid> buchungIds)

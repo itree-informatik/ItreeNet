@@ -4,6 +4,7 @@ public interface IDokumentService
 {
     Task<string> CreateArbeitsrapporte(int jahr, int monatVon, int monatBis);
     Task<string> CreateArbeitsrapporteOffeneBuchungen(DateOnly bis);
+    Task<string> CreateArbeitsrapporteAbgerechnet(DateOnly abgerechnetAm);
     Task<string> CreateSpesenabrechnung();
     Task<string> CreateProjektUebersicht(int jahr, int monatVon, int monatBis, Guid projektId);
 }

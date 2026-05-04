@@ -47,6 +47,13 @@ namespace ItreeNet.Services
             return await CreateArbeitsrapporteFromList(liste);
         }
 
+        public async Task<string> CreateArbeitsrapporteAbgerechnet(DateOnly abgerechnetAm)
+        {
+            ClearTempFolder();
+            var liste = await GetBuchungenAbgerechnet(abgerechnetAm);
+            return await CreateArbeitsrapporteFromList(liste);
+        }
+
         public async Task<string> CreateArbeitsrapporte(int jahr, int monatVon, int monatBis)
         {
             ClearTempFolder();
@@ -490,7 +497,9 @@ namespace ItreeNet.Services
                 .OrderBy(x => x.kun.Kundenname)
                 .ThenBy(x => x.mit.Nachname)
                 .ThenBy(x => x.mit.Vorname)
+                .ThenBy(x => x.mit.Id)
                 .ThenBy(x => x.pro.Nummer)
+                .ThenBy(x => x.pro.Id)
                 .ThenBy(x => x.buc.Datum)
                 .ThenBy(x => x.buc.ZeitVon)
                 .Select(n => new ReportBuchung
@@ -534,7 +543,9 @@ namespace ItreeNet.Services
                 .OrderBy(x => x.kun.Kundenname)
                 .ThenBy(x => x.mit.Nachname)
                 .ThenBy(x => x.mit.Vorname)
+                .ThenBy(x => x.mit.Id)
                 .ThenBy(x => x.pro.Nummer)
+                .ThenBy(x => x.pro.Id)
                 .ThenBy(x => x.buc.Datum)
                 .ThenBy(x => x.buc.ZeitVon)
                 .Select(n => new ReportBuchung
@@ -556,6 +567,49 @@ namespace ItreeNet.Services
                 .ToListAsync();
 
             return liste;
+        }
+
+        private async Task<IList<ReportBuchung>> GetBuchungenAbgerechnet(DateOnly abgerechnetAm)
+        {
+            var von = DateTime.SpecifyKind(abgerechnetAm.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+            var bis = DateTime.SpecifyKind(abgerechnetAm.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+
+            return await _context.TBuchung
+                .AsNoTracking()
+                .Where(b => b.Abgerechnet.HasValue && b.Abgerechnet.Value >= von && b.Abgerechnet.Value < bis)
+                .Join(_context.TVorgang, buc => buc.VorgangId, vor => vor.Id,
+                    (buc, vor) => new { buc, vor })
+                .Join(_context.TProjekt, vor => vor.vor.ProjektId, pro => pro.Id,
+                    (vor, pro) => new { vor.buc, vor.vor, pro })
+                .Join(_context.TKunde, pro => pro.pro.KundeId, kun => kun.Id,
+                    (pro, kun) => new { pro.buc, pro.vor, pro.pro, kun })
+                .Join(_context.TMitarbeiter, kun => kun.buc.MitarbeiterId, mit => mit.Id,
+                    (kun, mit) => new { kun.buc, kun.vor, kun.pro, kun.kun, mit })
+                .OrderBy(x => x.kun.Kundenname)
+                .ThenBy(x => x.mit.Nachname)
+                .ThenBy(x => x.mit.Vorname)
+                .ThenBy(x => x.mit.Id)
+                .ThenBy(x => x.pro.Nummer)
+                .ThenBy(x => x.pro.Id)
+                .ThenBy(x => x.buc.Datum)
+                .ThenBy(x => x.buc.ZeitVon)
+                .Select(n => new ReportBuchung
+                {
+                    KundeName = n.kun.Kundenname,
+                    MitarbeiterId = n.mit.Id,
+                    MitarbeiterName = $"{n.mit.Nachname} {n.mit.Vorname}",
+                    ProjektId = n.pro.Id,
+                    ProjektNummer = n.pro.Nummer,
+                    ProjektBezeichnung = n.pro.Bezeichnung,
+                    VorgangId = n.vor.Id,
+                    VorgangBezeichnung = n.vor.Bezeichnung,
+                    BuchungDatum = n.buc.Datum,
+                    BuchungVon = n.buc.ZeitVon,
+                    BuchungBis = n.buc.ZeitBis,
+                    BuchungText = n.buc.Buchungstext,
+                    BuchungZeit = n.buc.Zeit
+                })
+                .ToListAsync();
         }
 
         /// <summary>
@@ -610,8 +664,8 @@ namespace ItreeNet.Services
         private List<string[]> FillTotalListe(IList<ReportBuchung> buchungsListe)
         {
             var vorListe = buchungsListe
-                .GroupBy(b => b.VorgangBezeichnung)
-                .Select(l => new { VorgangName = l.Key, Summe = l.Sum(b => b.BuchungZeit) })
+                .GroupBy(b => b.VorgangId)
+                .Select(l => new { VorgangName = l.First().VorgangBezeichnung, Summe = l.Sum(b => b.BuchungZeit) })
                 .ToList()
                 .OrderBy(o => o.VorgangName);
 
