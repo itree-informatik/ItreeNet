@@ -417,7 +417,7 @@ namespace ItreeNet.Services
             var dashboardProjects = new List<DashboardProjekt>();
             foreach (var projekt in tProjekte)
             {
-                var relevantVorgaenge = projekt.TVorgang.Where(a => a.Aktiv && a.AnzahlStunden > decimal.Zero).ToList();
+                var relevantVorgaenge = projekt.TVorgang.Where(a => a.Aktiv).ToList();
 
                 var dashboardprojekt = new DashboardProjekt
                 {
