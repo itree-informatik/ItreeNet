@@ -403,7 +403,7 @@ namespace ItreeNet.Services
                 .ToListAsync();
 
             var allVorgangIds = tProjekte
-                .SelectMany(p => p.TVorgang.Where(v => v.Aktiv && v.AnzahlStunden > decimal.Zero))
+                .SelectMany(p => p.TVorgang.Where(v => v.Aktiv))
                 .Select(v => v.Id)
                 .ToList();
 
