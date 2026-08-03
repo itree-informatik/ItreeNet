@@ -6,10 +6,14 @@ namespace ItreeNet.Data.Validators
     public class BuchungValidator : AbstractValidator<Buchung>
     {
         /// <summary>
-        /// Buchungsintervall in Minuten (z.B. 15 = viertelstündig).
+        /// Buchungsintervall in Minuten (z.B. 15 = viertelstündig), stammt aus dem Projekt.
         /// null = keine Validierung. Wird vom UI gesetzt wenn das Projekt bekannt ist.
         /// </summary>
         public int? Intervall { get; set; } = 15;
+
+        private string IntervallMeldung() => Intervall == 15
+            ? "Bitte nur viertelstündig raportieren."
+            : $"Bitte nur im {Intervall}-Minuten-Takt raportieren.";
 
         public BuchungValidator()
         {
@@ -34,7 +38,7 @@ namespace ItreeNet.Data.Validators
                     var minutes = date.Value.Minute;
                     if (minutes % Intervall.Value != 0)
                     {
-                        context.AddFailure("Bitte nur viertelstündig raportieren.");
+                        context.AddFailure(IntervallMeldung());
                     }
                 });
             });
@@ -47,7 +51,7 @@ namespace ItreeNet.Data.Validators
                     var minutes = date.Value.Minute;
                     if (minutes % Intervall.Value != 0)
                     {
-                        context.AddFailure("Bitte nur viertelstündig raportieren.");
+                        context.AddFailure(IntervallMeldung());
                     }
                 });
             });
@@ -58,10 +62,11 @@ namespace ItreeNet.Data.Validators
                 {
                     if (zeit is null || Intervall is null) return;
 
-                    // Prüft, ob Zeit ein Vielfaches von 0.25 ist (z.B. 0.25, 0.5, 0.75, 1.0, ...)
-                    if ((zeit.Value * 100) % 25 != 0)
+                    // Zeit ist in Industriestunden erfasst — für die Intervallprüfung in Minuten umrechnen
+                    var minuten = Math.Round(zeit.Value * 60m, MidpointRounding.AwayFromZero);
+                    if (minuten % Intervall.Value != 0)
                     {
-                        context.AddFailure("Bitte nur viertelstündig raportieren.");
+                        context.AddFailure(IntervallMeldung());
                     }
                 });
             });

@@ -116,11 +116,8 @@
                         <FormField Label="Zeit">
                             @if (Buchung!.ZeitVon != null && Buchung!.ZeitBis != null)
                             {
-                                var zeitVon = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, Buchung.ZeitVon.Value.Hour, Buchung.ZeitVon.Value.Minute, 0);
-                                var zeitBis = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, Buchung.ZeitBis.Value.Hour, Buchung.ZeitBis.Value.Minute, 0);
-                                var hours = (zeitBis - zeitVon).TotalHours;
-                                var berechneteZeit = Convert.ToDecimal(hours.ToString("N2"));
-                                <MudNumericField Value="@berechneteZeit" ReadOnly="true" Format="N2" />
+                                @*Direkt Buchung.Zeit anzeigen — angezeigter, validierter und gespeicherter Wert müssen identisch sein*@
+                                <MudNumericField Value="@Buchung!.Zeit" ReadOnly="true" Format="N2" />
                                 <ValidationMessage For="(() => Buchung.Zeit)" />
                             }
                         </FormField>
@@ -184,6 +181,11 @@
     private bool _buttonIsLoading = false;
     private int _minuteStep = 15;
 
+    // Puffer für den Moduswechsel "Manuelle Eingabe" (siehe OnStundenChanged)
+    private DateTime? _zeitVonBuffer;
+    private DateTime? _zeitBisBuffer;
+    private decimal? _zeitBuffer;
+
     // Bridge properties for MudDatePicker (uses DateTime?)
     private DateTime? BuchungDatumAsDateTime => Buchung?.Datum.ToDateTime(new TimeOnly(0, 0, 0));
     private DateTime? DatumBisAsDateTime => Buchung?.DatumBis?.ToDateTime(new TimeOnly(0, 0, 0));
@@ -196,7 +198,8 @@
         {
             if (Buchung != null)
             {
-                Buchung.ZeitVon = value.HasValue ? DateTime.SpecifyKind(DateTime.Today.Add(value.Value), DateTimeKind.Utc) : null;
+                Buchung.ZeitVon = ToZeitpunkt(value);
+                SyncZeitpunkteMitDatum();
                 UpdateZeitFromRange();
             }
         }
@@ -208,33 +211,81 @@
         {
             if (Buchung != null)
             {
-                Buchung.ZeitBis = value.HasValue ? DateTime.SpecifyKind(DateTime.Today.Add(value.Value), DateTimeKind.Utc) : null;
+                Buchung.ZeitBis = ToZeitpunkt(value);
+                SyncZeitpunkteMitDatum();
                 UpdateZeitFromRange();
             }
         }
+    }
+
+    /// <summary>
+    ///     Verankert eine Uhrzeit am Buchungsdatum. Nicht an DateTime.Today — sonst bekommen
+    ///     ZeitVon und ZeitBis unterschiedliche Datumsanteile, sobald bei einer kopierten oder
+    ///     bearbeiteten Buchung nur einer der beiden Picker angefasst wird.
+    /// </summary>
+    private DateTime? ToZeitpunkt(TimeSpan? time)
+    {
+        if (Buchung == null || !time.HasValue) return null;
+        return DateTime.SpecifyKind(Buchung.Datum.ToDateTime(new TimeOnly(0, 0, 0)).Add(time.Value), DateTimeKind.Utc);
+    }
+
+    /// <summary>
+    ///     Hängt bestehende Zeitpunkte auf das aktuelle Buchungsdatum um (Uhrzeit bleibt erhalten).
+    /// </summary>
+    private void SyncZeitpunkteMitDatum()
+    {
+        if (Buchung == null) return;
+
+        var von = Buchung.ZeitVon?.TimeOfDay;
+        var bis = Buchung.ZeitBis?.TimeOfDay;
+
+        Buchung.ZeitVon = ToZeitpunkt(von);
+        Buchung.ZeitBis = ToZeitpunkt(bis);
+
+        // Buchung über Mitternacht (z.B. 18:15 bis 00:00): Endzeitpunkt liegt am Folgetag
+        if (von.HasValue && bis.HasValue && bis.Value < von.Value)
+            Buchung.ZeitBis = Buchung.ZeitBis!.Value.AddDays(1);
     }
 
     private void UpdateZeitFromRange()
     {
         if (Buchung?.ZeitVon != null && Buchung.ZeitBis != null)
         {
-            var hours = (Buchung.ZeitBis.Value - Buchung.ZeitVon.Value).TotalHours;
-            Buchung.Zeit = Convert.ToDecimal(hours.ToString("N2"));
+            // Über die Uhrzeiten rechnen — ein abweichender Datumsanteil (kopierte Buchung)
+            // darf die Stundenzahl nicht verfälschen.
+            var von = Buchung.ZeitVon.Value.TimeOfDay;
+            var bis = Buchung.ZeitBis.Value.TimeOfDay;
+            var spanne = bis < von ? bis.Add(TimeSpan.FromHours(24)) - von : bis - von;
+
+            Buchung.Zeit = Math.Round((decimal)spanne.TotalHours, 2);
         }
     }
 
+    /// <summary>
+    ///     Wechselt zwischen manueller Stundeneingabe und Zeit von / Zeit bis. Die Werte des jeweils
+    ///     inaktiven Modus werden gepuffert, damit ein versehentliches Hin- und Herschalten die
+    ///     Erfassung nicht verwirft.
+    /// </summary>
     private void OnStundenChanged(bool value)
     {
         if (Buchung == null) return;
         Buchung.Stunden = value;
+
         if (value)
         {
+            _zeitVonBuffer = Buchung.ZeitVon;
+            _zeitBisBuffer = Buchung.ZeitBis;
             Buchung.ZeitVon = null;
             Buchung.ZeitBis = null;
+            Buchung.Zeit ??= _zeitBuffer;
         }
         else
         {
+            _zeitBuffer = Buchung.Zeit;
+            Buchung.ZeitVon ??= _zeitVonBuffer;
+            Buchung.ZeitBis ??= _zeitBisBuffer;
             Buchung.Zeit = null;
+            UpdateZeitFromRange();
         }
     }
 
@@ -250,7 +301,10 @@
     private void OnBuchungDatumChanged(DateTime? newValue)
     {
         if (Buchung != null && newValue.HasValue)
+        {
             Buchung.Datum = DateOnly.FromDateTime(newValue.Value);
+            SyncZeitpunkteMitDatum();
+        }
     }
 
     private void OnDatumBisChanged(DateTime? newValue)
@@ -263,6 +317,28 @@
     {
         if (Buchung == null)
             throw new InvalidDataException("Buchung is null");
+
+        await LoadAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Buchung != null && !_loaded)
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        // Zeit ist im Modus "Zeit von / Zeit bis" ein abgeleiteter Wert. Bei kopierten oder
+        // älteren Buchungen kann sie fehlen oder nicht zur Zeitspanne passen — deshalb vor dem
+        // Klonen des OriginalItem einmal aus ZeitVon/ZeitBis herstellen.
+        if (!Buchung!.Stunden)
+        {
+            SyncZeitpunkteMitDatum();
+            UpdateZeitFromRange();
+        }
 
         OriginalItem = Buchung.Clone();
         _kunden = await KundenService.GetAllActiveOfTeamAsync(MitarbeiterId, _allCustomers);
@@ -281,30 +357,6 @@
         UpdateIntervall();
         _loaded = true;
         StateHasChanged();
-    }
-
-    protected override async Task OnParametersSetAsync()
-    {
-        if (Buchung != null && !_loaded)
-        {
-            OriginalItem = Buchung.Clone();
-            _kunden = await KundenService.GetAllActiveOfTeamAsync(MitarbeiterId, _allCustomers);
-            if (Buchung.VorgangId != Guid.Empty)
-            {
-                _kundenId = await GetCustomerId(Buchung.VorgangId);
-                _projektId = await GetProjectId(Buchung.VorgangId);
-                _projekte = await ProjektService.ProjectsByCustomerIdAsync(_kundenId);
-                _vorgaenge = await VorgangService.GetAllProjecIdAsync(_projektId);
-            }
-            else
-            {
-                await GetProjectsByCustomerId(_kundenId);
-                await GetProcessesByProjectId(_projektId);
-            }
-            UpdateIntervall();
-            _loaded = true;
-            StateHasChanged();
-        }
     }
 
     private async Task OnSwitchChange()
@@ -331,6 +383,7 @@
         if (Buchung != null) Buchung.VorgangId = Guid.Empty;
         _projekte = await ProjektService.ProjectsByCustomerIdAsync(customerId);
         _vorgaenge = new List<Vorgang>();
+        UpdateIntervall();
     }
 
     private async Task GetProcessesByProjectId(Guid projektId)
@@ -362,6 +415,12 @@
         if (Buchung != null)
         {
             List<Buchungstag> newList;
+
+            if (!Buchung.Stunden)
+            {
+                SyncZeitpunkteMitDatum();
+                UpdateZeitFromRange();
+            }
 
             if (Buchung.Id == Guid.Empty)
             {

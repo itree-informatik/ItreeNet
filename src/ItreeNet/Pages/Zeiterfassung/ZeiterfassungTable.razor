@@ -563,6 +563,17 @@ else
             case "copy":
                 SelectedItem = buchung.Clone();
                 SelectedItem!.Id = Guid.Empty;
+
+                // Kopie ist eine neue Buchung: Abrechnungs- und Änderungsverlauf gehören zum Original
+                SelectedItem.Abgerechnet = null;
+                SelectedItem.ChangedBy = null;
+                SelectedItem.ChangedOn = null;
+                SelectedItem.ChangedByMitarbeiter = null;
+                SelectedItem.OriginalVorgangId = null;
+                SelectedItem.OriginalVorgang = null;
+                SelectedItem.OriginalDatum = null;
+                SelectedItem.OriginalZeit = null;
+                SelectedItem.OriginalText = null;
                 break;
         }
         StateHasChanged();
