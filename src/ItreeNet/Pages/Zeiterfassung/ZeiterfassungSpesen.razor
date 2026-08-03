@@ -19,7 +19,7 @@ else
         <div class="d-flex justify-content-between">
             <div class="d-flex justify-content-between">
                 <label class="mt-1 me-4" for="dropdown_jahrid">Jahr</label>
-                <MudSelect @bind-Value="@_selectedYear" Style="width:200px;" id="dropdown_jahrid">
+                <MudSelect T="int" Value="@_selectedYear" ValueChanged="@OnYearChanged" Style="width:200px;" id="dropdown_jahrid">
                     @foreach (var item in _yearsList ?? new())
                     {
                         <MudSelectItem Value="item">@item</MudSelectItem>
@@ -147,6 +147,12 @@ else
     private async Task GetSpesen()
     {
         _spesenList = await SpesenService.GetSpesenMitarbeiterIdAsync(_mitarbeiterId, _selectedYear);
+    }
+
+    private async Task OnYearChanged(int year)
+    {
+        _selectedYear = year;
+        await GetSpesen();
     }
 
     private void OpenDialog(string type, Spesen spesen)

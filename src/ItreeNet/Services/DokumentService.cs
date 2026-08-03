@@ -88,15 +88,16 @@ namespace ItreeNet.Services
                 new object[] { "T2", 4, null! }
             };
 
-            var minDatum = liste.Min(b => b.BuchungDatum);
-            var maxDatum = liste.Max(b => b.BuchungDatum);
-            var reportDatum = minDatum.Month != maxDatum.Month
-                ? $"{minDatum:MMMM} - {maxDatum:MMMM} {minDatum:yyyy}"
-                : $"{minDatum:MMMM} {minDatum:yyyy}";
+            // Datumsbereich für den Namen der Zip-Datei über alle Buchungen (alle Projekte)
+            var zipReportDatum = GetReportDatum(liste);
 
+            // Datumsbereich für Titel/Dateiname jeweils nur aus den Buchungen des betreffenden Projekts
+            string GetProjektReportDatum(Guid projektId) =>
+                GetReportDatum(liste.Where(b => b.ProjektId == projektId).ToList());
 
             var proId = liste[0].ProjektId;
             var mitId = liste[0].MitarbeiterId;
+            var reportDatum = GetProjektReportDatum(proId);
             var dictonary = FillDictionary(liste[0].KundeName, liste[0].MitarbeiterName, reportDatum,
                 liste[0].ProjektNummer,
                 liste[0].ProjektBezeichnung);
@@ -123,6 +124,7 @@ namespace ItreeNet.Services
                     CreateDocument(dictonary, def, detailListe, def, totalListe, vorlage, dokumentname);
                     proId = buc.ProjektId;
                     mitId = buc.MitarbeiterId;
+                    reportDatum = GetProjektReportDatum(proId);
                     dictonary = FillDictionary(buc.KundeName, buc.MitarbeiterName, reportDatum, buc.ProjektNummer,
                         buc.ProjektBezeichnung);
                     zusammenzugliste = liste.Where(b => b.ProjektId == proId && b.MitarbeiterId == mitId)
@@ -157,7 +159,7 @@ namespace ItreeNet.Services
 
             // Dokumente in zip für Download
             var files = Directory.GetFiles(tempVerzeichnis);
-            var zipFile = $"{_tempVerzeichnis}Arbeitsrapporte {reportDatum}.zip";
+            var zipFile = $"{_tempVerzeichnis}Arbeitsrapporte {zipReportDatum}.zip";
             if (File.Exists(zipFile))
             {
                 File.Delete(zipFile);
@@ -171,6 +173,20 @@ namespace ItreeNet.Services
             }
             Directory.Delete(tempVerzeichnis, true);
             return zipFile;
+        }
+
+        /// <summary>
+        /// Ermittelt aus den übergebenen Buchungen den Datumsbereich als Text für Titel bzw. Dateiname.
+        /// </summary>
+        /// <param name="buchungen"></param>
+        /// <returns></returns>
+        private static string GetReportDatum(IEnumerable<ReportBuchung> buchungen)
+        {
+            var minDatum = buchungen.Min(b => b.BuchungDatum);
+            var maxDatum = buchungen.Max(b => b.BuchungDatum);
+            return minDatum.Month != maxDatum.Month
+                ? $"{minDatum:MMMM} - {maxDatum:MMMM} {minDatum:yyyy}"
+                : $"{minDatum:MMMM} {minDatum:yyyy}";
         }
 
         /// <summary>
