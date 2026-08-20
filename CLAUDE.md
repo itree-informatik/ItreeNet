@@ -51,7 +51,7 @@ Es gibt **kein** generisches `BaseActionService`/`BaseActionController`-Muster w
 
 - Azure AD via Microsoft.Identity.Web (OIDC) + Microsoft Graph.
 - `Middleware/UserInfoClaims.cs` (`IClaimsTransformation`) mappt die Azure-`uid` auf `TMitarbeiter.AzureId` und setzt den `IsIntern`-Claim; darauf basiert die Policy `internPolicy`.
-- Alle internen Seiten liegen unter der Route `/intern/...` mit `@attribute [Authorize]`.
+- Alle internen Seiten liegen unter der Route `/intern/...`. Dashboard und Zeiterfassung tragen bewusst nur `[Authorize]` — externe Mitarbeitende (Intern=false) erfassen dort ihre Zeiten. Stammdaten/Reports/Settings tragen zusätzlich `Policy = "internPolicy"`. Firmenweite Daten auf gemischt zugänglichen Seiten serverseitig via `UserService.CurrentUser.IsIntern` prüfen (Muster: `EnsureIntern()` im DashboardService).
 - Feingranulare Checks passieren **in den Services** über `UserService.CurrentUser` (`Benutzer` mit `IsAdmin`, `IsIntern`, `MitarbeiterId`). Admin = Azure-ID in `Globals.BossList` (aus Config-Sektion `Bosses`).
 - Statischer globaler Zustand in `Data/Extensions/Globals.cs` (`BossList`, `FileStorePath`).
 
@@ -63,6 +63,13 @@ Es gibt **kein** generisches `BaseActionService`/`BaseActionController`-Muster w
 ### Hintergrundarbeit
 
 `IBackgroundTaskQueue` + `BackgroundQueueHostedService` für asynchrone Jobs (z. B. Azure-DevOps-Pipeline-Statusabfragen über die `Pipelines`-Konfiguration mit PAT).
+
+## Fachliche Invarianten (sehen wie Bugs aus, sind gewollt)
+
+- **Monatsabschluss** (`BuchungsService.CreateMonatsAbschluss`): rechnet ab dem gewählten Monat immer bis zum Vormonat durch — Salden werden lückenlos fortgeschrieben, die UI dokumentiert das.
+- **Pensumswechsel** (`TFerienArbeitspensum.GueltigAb`): erfolgen organisatorisch immer zum Monatsersten; die Monatsberechnung lädt das Pensum deshalb bewusst nur am Monatsanfang.
+- **`TVorgang.AnzahlStunden`** = geschätztes Stundenbudget. Projekte ohne jedes Budget fehlen absichtlich in der Dashboard-Auslastung; Positionen ohne Schätzung fließen aber in die Prozentrechnung ein.
+- **PostgreSQL nutzt bewusst das Schema `dbo`** (`HasDefaultSchema("dbo")` im Context, Serilog loggt nach `dbo.T_Log`) — kein SQL-Server-Relikt.
 
 ## CI/CD
 
