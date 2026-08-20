@@ -13,10 +13,8 @@ public partial class TAnwesenheit
 
     public DateOnly Datum { get; set; }
 
-    [Column(TypeName = "datetime")]
     public DateTime? ZeitVon { get; set; }
 
-    [Column(TypeName = "datetime")]
     public DateTime? ZeitBis { get; set; }
 
     [Column(TypeName = "decimal(5, 2)")]

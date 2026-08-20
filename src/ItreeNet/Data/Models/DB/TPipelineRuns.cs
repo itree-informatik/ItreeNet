@@ -24,6 +24,5 @@ public partial class TPipelineRuns
     [StringLength(255)]
     public string Link { get; set; } = null!;
 
-    [Column(TypeName = "datetime")]
     public DateTime LastExecution { get; set; }
 }

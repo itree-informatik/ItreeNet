@@ -25,7 +25,6 @@ public partial class TMitarbeiterSaldoKorrektur
 
     public Guid CreatedBy { get; set; }
 
-    [Column(TypeName = "datetime")]
     public DateTime CreatedOn { get; set; }
 
     [ForeignKey("CreatedBy")]

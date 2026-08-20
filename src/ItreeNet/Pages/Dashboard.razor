@@ -278,6 +278,8 @@
             </MudItem>
         }
 
+        @if (Benutzer!.IsIntern)
+        {
         <!-- Projekt Buchungen (ColSpan=2 -> md=8) -->
         <MudItem xs="12" md="8">
             <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
@@ -399,6 +401,7 @@
                 }
             </MudPaper>
         </MudItem>
+        }
 
         <!-- Produktivität (ColSpan=1 -> md=4) -->
         <MudItem xs="12" md="4">
@@ -543,6 +546,8 @@
             </MudPaper>
         </MudItem>
 
+        @if (Benutzer!.IsIntern)
+        {
         <!-- Frontendtests (ColSpan=2 -> md=8) -->
         <MudItem xs="12" md="8">
             <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
@@ -615,6 +620,7 @@
                 }
             </MudPaper>
         </MudItem>
+        }
     </MudGrid>
 
     @* Monatsabschluss Window *@
@@ -921,9 +927,9 @@
         var tTop = DashboardService.TopBuchungenAsync(_mitarbeiterId);
         var tProv = DashboardService.GetProvisorischeBuchungenAsync();
         var tMitarb = DashboardService.GetDashboardMitarbeiterAsync();
-        var tProj = DashboardService.GetProjectBookingsAsync();
-        var tPipes = DashboardService.GetPipelineRunsAsync();
-        var tFrontend = DashboardService.GetFrontendtestOverviewsAsync(100);
+        var tProj = Benutzer.IsIntern ? DashboardService.GetProjectBookingsAsync() : Task.FromResult(new List<DashboardProjekt>());
+        var tPipes = Benutzer.IsIntern ? DashboardService.GetPipelineRunsAsync() : Task.FromResult(new List<PipelineRuns>());
+        var tFrontend = Benutzer.IsIntern ? DashboardService.GetFrontendtestOverviewsAsync(100) : Task.FromResult(new List<FrontendtestOverview>());
         var tTeam = DashboardService.GetTeamProductivity(_mitarbeiterId);
         var tPersonal = DashboardService.GetProductivity(_mitarbeiterId);
         var tReleases = ReleaseService.GetNextPerAppAsync();

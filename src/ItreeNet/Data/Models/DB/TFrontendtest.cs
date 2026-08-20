@@ -12,10 +12,8 @@ public partial class TFrontendtest
     [Key]
     public Guid Id { get; set; }
 
-    [Column(TypeName = "datetime")]
     public DateTime StartDatum { get; set; }
 
-    [Column(TypeName = "datetime")]
     public DateTime EndDatum { get; set; }
 
     [StringLength(255)]

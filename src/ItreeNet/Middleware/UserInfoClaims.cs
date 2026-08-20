@@ -8,12 +8,12 @@ namespace ItreeNet.Middleware
 {
     public class UserInfoClaims : IClaimsTransformation
     {
-        private readonly ZeiterfassungContext _context;
+        private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
         private readonly ILogger _logger;
 
-        public UserInfoClaims(ZeiterfassungContext context, ILogger logger)
+        public UserInfoClaims(IDbContextFactory<ZeiterfassungContext> dbFactory, ILogger logger)
         {
-            _context = context;
+            _dbFactory = dbFactory;
             _logger = logger;
         }
 
@@ -27,16 +27,23 @@ namespace ItreeNet.Middleware
 
             var newIdentity = (ClaimsIdentity)clone.Identity;
 
-            var uid = principal.Claims.First(x => x.Type == "uid").Value;
+            var uid = principal.Claims.FirstOrDefault(x => x.Type == "uid")?.Value;
+            if (!Guid.TryParse(uid, out var azureId))
+            {
+                _logger.Warning("No valid uid claim found for authenticated user");
+                return clone;
+            }
             _logger.Debug($"Authenticated user: {uid}");
 
+            await using var context = await _dbFactory.CreateDbContextAsync();
+
             var mitarbeiter = new TMitarbeiter();
-            var canConnect = _context.Database.CanConnect();
+            var canConnect = context.Database.CanConnect();
             if (canConnect)
             {
                 // Get person
                 mitarbeiter =
-                    await _context.TMitarbeiter.SingleOrDefaultAsync(m => m.AzureId == new Guid(uid));
+                    await context.TMitarbeiter.SingleOrDefaultAsync(m => m.AzureId == azureId);
             }
 
             if (canConnect && mitarbeiter != null)

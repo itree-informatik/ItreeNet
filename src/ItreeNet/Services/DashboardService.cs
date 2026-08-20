@@ -16,18 +16,20 @@ namespace ItreeNet.Services
         private readonly IMapper _mapper;
         private readonly IMitarbeiterService _mitarbeiterService;
         private readonly IVorgangService _vorgangService;
+        private readonly UserService _userService;
         private static readonly HttpClient Client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         private const string Organization = "itreeCH";
         private readonly List<string>? _projects;
         private bool _pipelinesEnabled;
         private int _updateInHours = 4;
 
-        public DashboardService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper, IMitarbeiterService mitarbeiterService, IVorgangService vorgangService, IConfiguration config)
+        public DashboardService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper, IMitarbeiterService mitarbeiterService, IVorgangService vorgangService, UserService userService, IConfiguration config)
         {
             _dbFactory = dbFactory;
             _mapper = mapper;
             _mitarbeiterService = mitarbeiterService;
             _vorgangService = vorgangService;
+            _userService = userService;
 
             _projects = config["Pipelines:Projects"]?.Split(",").ToList();
             var pat = config["Pipelines:PAT"];
@@ -390,8 +392,20 @@ namespace ItreeNet.Services
                 .ToListAsync();
         }
 
+        // Firmenweite Dashboard-Daten: nur für interne Mitarbeitende
+        private void EnsureIntern()
+        {
+            var currentUser = _userService.CurrentUser;
+            if (currentUser == null || !currentUser.IsIntern)
+            {
+                throw new Exception("Du bist nicht berechtigt");
+            }
+        }
+
         public async Task<List<DashboardProjekt>> GetProjectBookingsAsync()
         {
+            EnsureIntern();
+
             await using var context = await _dbFactory.CreateDbContextAsync();
 
             var tProjekte = await context.TProjekt
@@ -438,6 +452,8 @@ namespace ItreeNet.Services
 
         public async Task<List<PipelineRuns>> GetPipelineRunsAsync()
         {
+            EnsureIntern();
+
             await using var context = await _dbFactory.CreateDbContextAsync();
 
             var tPipelineRuns = await context.TPipelineRuns
@@ -659,6 +675,8 @@ namespace ItreeNet.Services
 
         public async Task<List<FrontendtestOverview>> GetFrontendtestOverviewsAsync(int take)
         {
+            EnsureIntern();
+
             await using var context = await _dbFactory.CreateDbContextAsync();
             var tFrontendtests = await context.TFrontendtest
                 .AsNoTracking()
@@ -670,6 +688,8 @@ namespace ItreeNet.Services
 
         public async Task<Frontendtest> GetFrontendtestDetailAsync(Guid id)
         {
+            EnsureIntern();
+
             await using var context = await _dbFactory.CreateDbContextAsync();
             var tFrontendtests = await context.TFrontendtest
                 .Include(f => f.TFrontendtestDetail)
@@ -682,6 +702,8 @@ namespace ItreeNet.Services
 
         public async Task DeleteFrontendtestsAsync(int take)
         {
+            EnsureIntern();
+
             await using var context = await _dbFactory.CreateDbContextAsync();
 
             context.Database.SetCommandTimeout(300);

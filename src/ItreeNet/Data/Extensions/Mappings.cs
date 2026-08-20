@@ -12,6 +12,16 @@ namespace ItreeNet.Data.Extensions
                 .ReverseMap()
                 .ForMember(a => a.Mitarbeiter, opt => opt.Ignore());
 
+            CreateMap<TApplikation, Applikation>()
+                .ReverseMap()
+                .ForMember(a => a.TRelease, opt => opt.Ignore());
+
+            CreateMap<TRelease, Release>()
+                .ForMember(r => r.ApplikationName, opt => opt.MapFrom(r => r.Applikation.Bezeichnung))
+                .ReverseMap()
+                .ForPath(r => r.Applikation.Bezeichnung, opt => opt.Ignore())
+                .ForMember(r => r.Applikation, opt => opt.Ignore());
+
             CreateMap<TArbeitszeit, Arbeitszeit>()
                 .ForMember(a => a.Zeit, opt => opt.MapFrom(a => a.Arbeitszeit))
                 .ReverseMap()
@@ -26,7 +36,8 @@ namespace ItreeNet.Data.Extensions
                 .ReverseMap()
                 .ForMember(b => b.ChangedByNavigation, opt => opt.Ignore())
                 .ForMember(b => b.Mitarbeiter, opt => opt.Ignore())
-                .ForMember(b => b.Vorgang, opt => opt.Ignore());
+                .ForMember(b => b.Vorgang, opt => opt.Ignore())
+                .ForMember(b => b.OriginalVorgang, opt => opt.Ignore());
 
             CreateMap<TFerienArbeitspensum, FerienArbeitspensum>().ReverseMap();
 

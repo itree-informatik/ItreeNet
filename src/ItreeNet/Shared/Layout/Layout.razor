@@ -218,9 +218,9 @@
             var cp = (await AuthenticationStateTask!).User;
             if (!cp.Identity?.IsAuthenticated ?? true)
             {
-                var currentUrl = NavigationManager.Uri;
+                var currentUrl = $"/{NavigationManager.ToBaseRelativePath(NavigationManager.Uri)}";
                 Logger.LogInformation("Unauthenticated access, redirecting to login. URL: {Url}", currentUrl);
-                NavigationManager.NavigateTo($"login/microsoft?redirectUrl={currentUrl}");
+                NavigationManager.NavigateTo($"login/microsoft?redirectUrl={Uri.EscapeDataString(currentUrl)}");
             }
             else
             {

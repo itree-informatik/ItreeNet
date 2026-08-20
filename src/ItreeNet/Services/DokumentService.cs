@@ -15,15 +15,15 @@ namespace ItreeNet.Services
 {
     public class DokumentService: IDokumentService
     {
-        private readonly ZeiterfassungContext _context;
+        private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
         private readonly UserService _userService;
         private readonly string _tempVerzeichnis;
         private readonly string _vorlagenVerzeichnis;
         private DocumentModel _dokument = null!;
 
-        public DokumentService(ZeiterfassungContext context, UserService userService, IConfiguration config)
+        public DokumentService(IDbContextFactory<ZeiterfassungContext> dbFactory, UserService userService, IConfiguration config)
         {
-            _context = context;
+            _dbFactory = dbFactory;
             _userService = userService;
             var serialKey = config["LicenseKeys:Gembox"]?.Trim();
             ComponentInfo.SetLicense(serialKey);
@@ -110,7 +110,7 @@ namespace ItreeNet.Services
             };
             var datum = DateOnly.FromDateTime(DateTime.MinValue);
             var dokumentname =
-                $"{tempVerzeichnis}{liste[0].KundeName}_{liste[0].ProjektNummer.Replace("/", "-")}_{liste[0].MitarbeiterName.Replace(" ", string.Empty)}_{reportDatum.Replace(" ", string.Empty)}.pdf";
+                $"{tempVerzeichnis}{SanitizeFileName(liste[0].KundeName)}_{SanitizeFileName(liste[0].ProjektNummer)}_{SanitizeFileName(liste[0].MitarbeiterName.Replace(" ", string.Empty))}_{reportDatum.Replace(" ", string.Empty)}.pdf";
             var zusammenzugliste = liste.Where(b => b.ProjektId == proId).OrderBy(o => o.VorgangBezeichnung)
                 .ToList();
             var total = zusammenzugliste.Where(v => v.BuchungZeit.HasValue && v.ProjektId == proId && v.MitarbeiterId == mitId).Sum(v => v.BuchungZeit!.Value);
@@ -134,7 +134,7 @@ namespace ItreeNet.Services
                     totalListe = FillTotalListe(zusammenzugliste);
                     datum = DateOnly.FromDateTime(DateTime.MinValue);
                     dokumentname =
-                        $"{tempVerzeichnis}{buc.KundeName}_{buc.ProjektNummer.Replace("/", "-")}_{buc.MitarbeiterName.Replace(" ", string.Empty)}_{reportDatum.Replace(" ", string.Empty)}.pdf";
+                        $"{tempVerzeichnis}{SanitizeFileName(buc.KundeName)}_{SanitizeFileName(buc.ProjektNummer)}_{SanitizeFileName(buc.MitarbeiterName.Replace(" ", string.Empty))}_{reportDatum.Replace(" ", string.Empty)}.pdf";
                     detailListe.Clear();
                     detailListe.Add(new[] { "H1" });
                     detailListe.Add(new[] { "H2" });
@@ -199,11 +199,13 @@ namespace ItreeNet.Services
         {
             ClearTempFolder();
 
-            var spesenListe = await _context.TSpesen
+            await using var context = await _dbFactory.CreateDbContextAsync();
+
+            var spesenListe = await context.TSpesen
                 .AsNoTracking()
                 .Where(s => s.EingereichtAm == null && s.MitarbeiterId == _userService.CurrentUser!.MitarbeiterId!.Value &&
                             s.Datum <= DateOnly.FromDateTime(DateTime.Today.Date))
-                .Join(_context.TMitarbeiter, spe => spe.MitarbeiterId, mit => mit.Id,
+                .Join(context.TMitarbeiter, spe => spe.MitarbeiterId, mit => mit.Id,
                     (spe, mit) => new
                     {
                         spe,
@@ -256,7 +258,7 @@ namespace ItreeNet.Services
                 ? $"{minDatum:MMMM} - {maxDatum:MMMM} {minDatum:yyyy}"
                 : $"{minDatum:MMMM} {minDatum:yyyy}";
 
-            var pdfFile = $"{_tempVerzeichnis}Spesenabrechnung {spesenListe[0].MitarbeiterName} {reportDatum}.pdf";
+            var pdfFile = $"{_tempVerzeichnis}Spesenabrechnung {SanitizeFileName(spesenListe[0].MitarbeiterName)} {reportDatum}.pdf";
             if (File.Exists(pdfFile))
             {
                 File.Delete(pdfFile);
@@ -290,16 +292,16 @@ namespace ItreeNet.Services
             Save(pdfFile);
 
             // Einreichdatum setzen
-            var tSpe = await _context.TSpesen
+            var tSpe = await context.TSpesen
                 .Where(s => s.EingereichtAm == null && s.MitarbeiterId == _userService.CurrentUser!.MitarbeiterId!.Value &&
                             s.Datum <= DateOnly.FromDateTime(DateTime.Today))
                 .ToListAsync();
             foreach (var spesen in tSpe)
             {
                 spesen.EingereichtAm = DateOnly.FromDateTime(DateTime.Today);
-                _context.Entry(spesen).State = EntityState.Modified;
+                context.Entry(spesen).State = EntityState.Modified;
             }
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
 
             return pdfFile;
         }
@@ -369,7 +371,7 @@ namespace ItreeNet.Services
             };
 
             var dokumentname =
-                $"{_tempVerzeichnis}{liste[0].KundeName}_{liste[0].ProjektNummer.Replace("/", "-")}_{reportDatum.Replace(" ", string.Empty)}.pdf";
+                $"{_tempVerzeichnis}{SanitizeFileName(liste[0].KundeName)}_{SanitizeFileName(liste[0].ProjektNummer)}_{reportDatum.Replace(" ", string.Empty)}.pdf";
 
             var vorId = liste[0].VorgangId;
             var vorBezeichnung = liste[0].VorgangBezeichnung;
@@ -477,23 +479,25 @@ namespace ItreeNet.Services
         /// <returns></returns>
         private async Task<IList<ReportBuchung>> GetBuchungen(DateOnly von, DateOnly bis, Guid? proId = null)
         {
-            var liste = await _context.TBuchung
+            await using var context = await _dbFactory.CreateDbContextAsync();
+
+            var liste = await context.TBuchung
                 .AsNoTracking()
                 .Where(b => b.Datum >= von && b.Datum <= bis && !b.Provisorisch)
-                .Join(_context.TVorgang, buc => buc.VorgangId, vor => vor.Id,
+                .Join(context.TVorgang, buc => buc.VorgangId, vor => vor.Id,
                     (buc, vor) => new
                     {
                         buc,
                         vor
                     })
-                .Join(_context.TProjekt, vor => vor.vor.ProjektId, pro => pro.Id,
+                .Join(context.TProjekt, vor => vor.vor.ProjektId, pro => pro.Id,
                     (vor, pro) => new
                     {
                         vor.buc,
                         vor.vor,
                         pro
                     })
-                .Join(_context.TKunde, pro => pro.pro.KundeId, kun => kun.Id,
+                .Join(context.TKunde, pro => pro.pro.KundeId, kun => kun.Id,
                     (pro, kun) => new
                     {
                         pro.buc,
@@ -501,7 +505,7 @@ namespace ItreeNet.Services
                         pro.pro,
                         kun
                     })
-                .Join(_context.TMitarbeiter, kun => kun.buc.MitarbeiterId, mit => mit.Id,
+                .Join(context.TMitarbeiter, kun => kun.buc.MitarbeiterId, mit => mit.Id,
                     (kun, mit) => new
                     {
                         kun.buc,
@@ -545,16 +549,18 @@ namespace ItreeNet.Services
 
         private async Task<IList<ReportBuchung>> GetOffeneBuchungen(DateOnly bis)
         {
-            var liste = await _context.TBuchung
+            await using var context = await _dbFactory.CreateDbContextAsync();
+
+            var liste = await context.TBuchung
                 .AsNoTracking()
                 .Where(b => b.Abgerechnet == null && !b.Provisorisch && b.Datum <= bis)
-                .Join(_context.TVorgang, buc => buc.VorgangId, vor => vor.Id,
+                .Join(context.TVorgang, buc => buc.VorgangId, vor => vor.Id,
                     (buc, vor) => new { buc, vor })
-                .Join(_context.TProjekt, vor => vor.vor.ProjektId, pro => pro.Id,
+                .Join(context.TProjekt, vor => vor.vor.ProjektId, pro => pro.Id,
                     (vor, pro) => new { vor.buc, vor.vor, pro })
-                .Join(_context.TKunde, pro => pro.pro.KundeId, kun => kun.Id,
+                .Join(context.TKunde, pro => pro.pro.KundeId, kun => kun.Id,
                     (pro, kun) => new { pro.buc, pro.vor, pro.pro, kun })
-                .Join(_context.TMitarbeiter, kun => kun.buc.MitarbeiterId, mit => mit.Id,
+                .Join(context.TMitarbeiter, kun => kun.buc.MitarbeiterId, mit => mit.Id,
                     (kun, mit) => new { kun.buc, kun.vor, kun.pro, kun.kun, mit })
                 .OrderBy(x => x.kun.Kundenname)
                 .ThenBy(x => x.mit.Nachname)
@@ -590,16 +596,18 @@ namespace ItreeNet.Services
             var von = DateTime.SpecifyKind(abgerechnetAm.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
             var bis = DateTime.SpecifyKind(abgerechnetAm.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
 
-            return await _context.TBuchung
+            await using var context = await _dbFactory.CreateDbContextAsync();
+
+            return await context.TBuchung
                 .AsNoTracking()
                 .Where(b => b.Abgerechnet.HasValue && b.Abgerechnet.Value >= von && b.Abgerechnet.Value < bis)
-                .Join(_context.TVorgang, buc => buc.VorgangId, vor => vor.Id,
+                .Join(context.TVorgang, buc => buc.VorgangId, vor => vor.Id,
                     (buc, vor) => new { buc, vor })
-                .Join(_context.TProjekt, vor => vor.vor.ProjektId, pro => pro.Id,
+                .Join(context.TProjekt, vor => vor.vor.ProjektId, pro => pro.Id,
                     (vor, pro) => new { vor.buc, vor.vor, pro })
-                .Join(_context.TKunde, pro => pro.pro.KundeId, kun => kun.Id,
+                .Join(context.TKunde, pro => pro.pro.KundeId, kun => kun.Id,
                     (pro, kun) => new { pro.buc, pro.vor, pro.pro, kun })
-                .Join(_context.TMitarbeiter, kun => kun.buc.MitarbeiterId, mit => mit.Id,
+                .Join(context.TMitarbeiter, kun => kun.buc.MitarbeiterId, mit => mit.Id,
                     (kun, mit) => new { kun.buc, kun.vor, kun.pro, kun.kun, mit })
                 .OrderBy(x => x.kun.Kundenname)
                 .ThenBy(x => x.mit.Nachname)
@@ -756,18 +764,6 @@ namespace ItreeNet.Services
                 throw new Exception($"Tabelle '{title}' in Dokument nicht gefunden");
             }
 
-            // anzahl tabellen spalten müssen mit anzahl einträgen übereinstimmen
-
-            var columnCountListe = 0;
-            foreach (var entry in liste)
-            {
-                if (entry.Length > columnCountListe)
-                {
-                    // Typ muss von der Laenge abgezogen werden
-                    columnCountListe = entry.Length - 1;
-                }
-            }
-
             foreach (var row in definition)
             {
                 var rowString = row[1].ToString();
@@ -803,7 +799,15 @@ namespace ItreeNet.Services
                 {
                     if (obj[0].ToString() == row[0])
                     {
-                        table.Rows.Add(((TableRow)obj[2]).Clone(true));
+                        var newRow = ((TableRow)obj[2]).Clone(true);
+
+                        // anzahl zellen der vorlagenzeile muss mit anzahl einträgen übereinstimmen (Typ zählt nicht mit)
+                        if (row.Length - 1 > newRow.Cells.Count)
+                        {
+                            throw new Exception($"Tabelle '{title}': Zeilentyp '{row[0]}' hat {newRow.Cells.Count} Zellen in der Vorlage, benötigt werden {row.Length - 1}");
+                        }
+
+                        table.Rows.Add(newRow);
                         for (var counter = 1; counter < row.Length; counter++)
                         {
                             // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
@@ -817,6 +821,15 @@ namespace ItreeNet.Services
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Ersetzt Zeichen, die in Dateinamen nicht erlaubt sind (z.B. ':' oder '/'), durch '-'.
+        /// </summary>
+        private static string SanitizeFileName(string name)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            return string.Concat(name.Select(c => invalid.Contains(c) ? '-' : c)).Trim();
         }
 
         private void ClearTempFolder()

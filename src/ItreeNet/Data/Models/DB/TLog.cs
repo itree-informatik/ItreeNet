@@ -15,7 +15,6 @@ public partial class TLog
 
     public string? Level { get; set; }
 
-    [Column(TypeName = "datetime")]
     public DateTime? TimeStamp { get; set; }
 
     public string? Exception { get; set; }

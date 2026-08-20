@@ -78,6 +78,11 @@ namespace ItreeNet.Services
                 anzahlProWoche++;
             }
 
+            if (anzahlProWoche == 0)
+            {
+                throw new InvalidDataException($"FerienArbeitspensum (gültig ab {ferienArbeitspensum.GueltigAb:dd.MM.yyyy}) hat keinen Wochentag gesetzt");
+            }
+
             var arbeitsZeit = await context.TArbeitszeit
                                                 .AsNoTracking()
                                                 .SingleOrDefaultAsync(a => a.Jahr == date.Year && a.Monat == date.Month)

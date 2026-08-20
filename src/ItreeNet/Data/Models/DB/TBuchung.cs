@@ -15,10 +15,8 @@ public partial class TBuchung
 
     public DateOnly Datum { get; set; }
 
-    [Column(TypeName = "datetime")]
     public DateTime? ZeitVon { get; set; }
 
-    [Column(TypeName = "datetime")]
     public DateTime? ZeitBis { get; set; }
 
     [Column(TypeName = "decimal(5, 2)")]
@@ -29,14 +27,12 @@ public partial class TBuchung
 
     public bool Stunden { get; set; }
 
-    [Column(TypeName = "datetime")]
     public DateTime? Abgerechnet { get; set; }
 
     public bool Provisorisch { get; set; }
 
     public Guid? ChangedBy { get; set; }
 
-    [Column(TypeName = "datetime")]
     public DateTime? ChangedOn { get; set; }
 
     public Guid? OriginalVorgangId { get; set; }

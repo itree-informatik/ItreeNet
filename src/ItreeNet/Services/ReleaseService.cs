@@ -1,3 +1,5 @@
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
@@ -5,9 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ItreeNet.Services;
 
-public class ReleaseService(IDbContextFactory<ZeiterfassungContext> dbFactory) : IReleaseService
+public class ReleaseService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper) : IReleaseService
 {
     private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory = dbFactory;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<List<Release>> GetAllAsync(DateOnly? von = null, DateOnly? bis = null)
     {
@@ -18,18 +21,10 @@ public class ReleaseService(IDbContextFactory<ZeiterfassungContext> dbFactory) :
         await using var context = await _dbFactory.CreateDbContextAsync();
 
         return await context.TRelease
-            .Include(r => r.Applikation)
             .Where(r => r.Datum >= vonDatum && r.Datum <= bisDatum)
             .OrderBy(r => r.Datum)
             .ThenBy(r => r.Applikation.Bezeichnung)
-            .Select(r => new Release
-            {
-                Id           = r.Id,
-                ApplikationId = r.ApplikationId,
-                Datum        = r.Datum,
-                Bezeichnung  = r.Bezeichnung,
-                ApplikationName = r.Applikation.Bezeichnung
-            })
+            .ProjectTo<Release>(_mapper.ConfigurationProvider)
             .ToListAsync();
     }
 
@@ -48,15 +43,8 @@ public class ReleaseService(IDbContextFactory<ZeiterfassungContext> dbFactory) :
                 r => new { r.ApplikationId, r.Datum },
                 n => new { n.ApplikationId, Datum = n.MinDatum },
                 (r, _) => r)
-            .Select(r => new Release
-            {
-                Id = r.Id,
-                ApplikationId = r.ApplikationId,
-                Datum = r.Datum,
-                Bezeichnung = r.Bezeichnung,
-                ApplikationName = r.Applikation.Bezeichnung
-            })
             .OrderBy(r => r.Datum)
+            .ProjectTo<Release>(_mapper.ConfigurationProvider)
             .ToListAsync();
     }
 
