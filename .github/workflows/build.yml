@@ -97,10 +97,10 @@ jobs:
             --configfile src/nuget.config
 
       - name: Restore NuGet packages
-        run: dotnet restore src/ItreeNet.sln --configfile src/nuget.config
+        run: dotnet restore src/ItreeNet.slnx --configfile src/nuget.config
 
       - name: Build solution
-        run: dotnet build src/ItreeNet.sln --no-restore -c Release
+        run: dotnet build src/ItreeNet.slnx --no-restore -c Release
 
   # ──────────────────────────────────────────────
   # Stage 3: Publish (main only)
@@ -163,7 +163,7 @@ jobs:
         run: |
           IMAGE_ID=$(docker images -q "${{ env.ACR_REGISTRY }}/${{ env.DOCKER_REPO }}:latest")
 
-          dotnet-CycloneDX src/ItreeNet.sln -o . -ed --json -fn itree-sln-sbom.json -sn ItreeNet -sv ${{ env.VERSION }}
+          dotnet-CycloneDX src/ItreeNet/ItreeNet.csproj -o . -ed --json -fn itree-sln-sbom.json -sn ItreeNet -sv ${{ env.VERSION }}
           syft "$IMAGE_ID" -o cyclonedx-json@1.6 --file itree-docker-sbom.json
           cyclonedx merge --input-files itree-sln-sbom.json itree-docker-sbom.json \
             --output-format json --output-version v1_6 --output-file itree-sbom.json \

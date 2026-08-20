@@ -9,7 +9,7 @@ ARG NUGET_AUTH_TOKEN
 
 # copy csproj and restore as distinct layers
 COPY /ItreeNet ./ItreeNet
-COPY ItreeNet.sln .
+COPY ItreeNet.slnx .
 COPY nuget.config .
 
 RUN dotnet nuget add source "https://nuget.pkg.github.com/itree-informatik/index.json" \
@@ -17,7 +17,7 @@ RUN dotnet nuget add source "https://nuget.pkg.github.com/itree-informatik/index
       --username "itree-informatik" \
       --password "$NUGET_AUTH_TOKEN" \
       --store-password-in-clear-text && \
-    dotnet restore ItreeNet.sln
+    dotnet restore ItreeNet.slnx
 
 # copy everything
 COPY . .
