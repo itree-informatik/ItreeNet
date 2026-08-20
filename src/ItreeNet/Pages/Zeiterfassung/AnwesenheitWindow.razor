@@ -1,4 +1,6 @@
 @inject IAnwesenheitService AnwesenheitService
+@inject IPensumService PensumService
+@inject ISnackbar Snackbar
 
 @if (_visible)
 {
@@ -47,6 +49,35 @@
                 <EditForm Model="@_model" OnValidSubmit="@Save">
                     <ItreeFluentValidationValidator Validator="@(new AnwesenheitValidator())" DisableAssemblyScanning="true" StrictMode="false" />
 
+                    @if (_model.Id == Guid.Empty)
+                    {
+                        <div class="d-flex align-items-center mb-2" style="gap: 12px;">
+                            <MudText Style="min-width:80px;">Mehrtägig</MudText>
+                            <div style="flex:1;">
+                                <MudSwitch Value="@_mehrtaegig" ValueChanged="@((bool val) => OnMehrtaegigChanged(val))" Color="Color.Primary" />
+                            </div>
+                        </div>
+                    }
+
+                    @if (_mehrtaegig)
+                    {
+                        <div class="d-flex align-items-center mb-2" style="gap: 12px;">
+                            <MudText Style="min-width:80px;">Datum von</MudText>
+                            <div style="flex:1;">
+                                <MudDatePicker Date="@DatumVonAsDateTime" DateChanged="@OnDatumVonChanged" Editable="true" />
+                                <ValidationMessage For="(() => _model.Datum)" />
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center mb-2" style="gap: 12px;">
+                            <MudText Style="min-width:80px;">Datum bis</MudText>
+                            <div style="flex:1;">
+                                <MudDatePicker Date="@DatumBisAsDateTime" DateChanged="@OnDatumBisChanged" Editable="true" MinDate="@DatumVonAsDateTime" />
+                                <ValidationMessage For="(() => _model.DatumBis)" />
+                            </div>
+                        </div>
+                    }
+
                     <div class="d-flex align-items-center mb-2" style="gap: 12px;">
                         <MudText Style="min-width:80px;">Typ</MudText>
                         <div style="flex:1;">
@@ -69,30 +100,33 @@
                         </div>
                     </div>
 
-                    <div class="d-flex align-items-center mb-2" style="gap: 12px;">
-                        <MudText Style="min-width:80px;">Zeit von</MudText>
-                        <div style="flex:1;">
-                            <MudTimePicker @bind-Time="@ZeitVonAsTimeSpan" MinuteSelectionStep="15" />
-                            <ValidationMessage For="(() => _model.ZeitVon)" />
-                        </div>
-                    </div>
-
-                    <div class="d-flex align-items-center mb-2" style="gap: 12px;">
-                        <MudText Style="min-width:80px;">Zeit bis</MudText>
-                        <div style="flex:1;">
-                            <MudTimePicker @bind-Time="@ZeitBisAsTimeSpan" MinuteSelectionStep="15" />
-                            <ValidationMessage For="(() => _model.ZeitBis)" />
-                        </div>
-                    </div>
-
-                    @if (_model.ZeitVon != null && _model.ZeitBis != null)
+                    @if (!_mehrtaegig)
                     {
                         <div class="d-flex align-items-center mb-2" style="gap: 12px;">
-                            <MudText Style="min-width:80px;">Pause (h)</MudText>
+                            <MudText Style="min-width:80px;">Zeit von</MudText>
                             <div style="flex:1;">
-                                <MudNumericField Value="@_pause" ValueChanged="@((decimal val) => OnPauseChanged(val))" Format="N2" Min="0" Step="0.25M" />
+                                <MudTimePicker @bind-Time="@ZeitVonAsTimeSpan" MinuteSelectionStep="15" />
+                                <ValidationMessage For="(() => _model.ZeitVon)" />
                             </div>
                         </div>
+
+                        <div class="d-flex align-items-center mb-2" style="gap: 12px;">
+                            <MudText Style="min-width:80px;">Zeit bis</MudText>
+                            <div style="flex:1;">
+                                <MudTimePicker @bind-Time="@ZeitBisAsTimeSpan" MinuteSelectionStep="15" />
+                                <ValidationMessage For="(() => _model.ZeitBis)" />
+                            </div>
+                        </div>
+
+                        @if (_model.ZeitVon != null && _model.ZeitBis != null)
+                        {
+                            <div class="d-flex align-items-center mb-2" style="gap: 12px;">
+                                <MudText Style="min-width:80px;">Pause (h)</MudText>
+                                <div style="flex:1;">
+                                    <MudNumericField Value="@_pause" ValueChanged="@((decimal val) => OnPauseChanged(val))" Format="N2" Min="0" Step="0.25M" />
+                                </div>
+                            </div>
+                        }
                     }
 
                     <FormField Label="@(_model.Typ == EnumAnwesenheitTyp.Abwesenheit ? "Notiz *" : "Notiz")">
@@ -100,10 +134,19 @@
                         <ValidationMessage For="(() => _model.Notiz)" />
                     </FormField>
 
-                    <ItreeButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
-                        <MudButton ButtonType="ButtonType.Submit" StartIcon="@Icons.Material.Filled.Save" Variant="Variant.Filled" Color="Color.Primary">Speichern</MudButton>
-                        <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Cancel" Variant="Variant.Filled" Color="Color.Primary" OnClick="@CancelForm">Abbrechen</MudButton>
-                    </ItreeButtonGroup>
+                    @if (_isSaving)
+                    {
+                        <ItreeButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
+                            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
+                        </ItreeButtonGroup>
+                    }
+                    else
+                    {
+                        <ItreeButtonGroup Position="EnumButtonGroupPosition.Rechts" CustomStyle="width: 100%;">
+                            <MudButton ButtonType="ButtonType.Submit" StartIcon="@Icons.Material.Filled.Save" Variant="Variant.Filled" Color="Color.Primary">Speichern</MudButton>
+                            <MudButton ButtonType="ButtonType.Button" StartIcon="@Icons.Material.Filled.Cancel" Variant="Variant.Filled" Color="Color.Primary" OnClick="@CancelForm">Abbrechen</MudButton>
+                        </ItreeButtonGroup>
+                    }
                 </EditForm>
             }
             else
@@ -132,6 +175,56 @@
     private Guid _loadedMitarbeiterId;
     private decimal _pause = 0;
     private string _tableTheme = "table-light";
+    private bool _mehrtaegig;
+    private bool _isSaving;
+
+    private DateTime? DatumVonAsDateTime => _model.Datum.ToDateTime(new TimeOnly(0));
+    private DateTime? DatumBisAsDateTime => _model.DatumBis?.ToDateTime(new TimeOnly(0));
+
+    private void OnDatumVonChanged(DateTime? newValue)
+    {
+        if (newValue.HasValue)
+            _model.Datum = DateOnly.FromDateTime(newValue.Value);
+    }
+
+    private void OnDatumBisChanged(DateTime? newValue)
+    {
+        if (newValue.HasValue)
+            _model.DatumBis = DateOnly.FromDateTime(newValue.Value);
+    }
+
+    private async Task OnMehrtaegigChanged(bool value)
+    {
+        _mehrtaegig = value;
+        if (value)
+        {
+            _model.DatumBis ??= Datum;
+            // Uhrzeiten ergeben über mehrere Tage keinen Sinn — nur das Stundenfeld gilt als Vorlage
+            _model.ZeitVon = null;
+            _model.ZeitBis = null;
+            _pause = 0;
+            await PrefillTagespensumAsync();
+        }
+        else
+        {
+            _model.DatumBis = null;
+            _model.Datum = Datum;
+        }
+    }
+
+    private async Task PrefillTagespensumAsync()
+    {
+        try
+        {
+            var tagespensum = await PensumService.GetDailyWorkloadByemployeeAsync(MitarbeiterId, Datum);
+            // Auf Viertelstunden runden — der Validator lässt nur viertelstündige Werte zu
+            _model.Zeit = Math.Round(tagespensum * 4, MidpointRounding.AwayFromZero) / 4;
+        }
+        catch (InvalidDataException ex)
+        {
+            Snackbar.Add($"Tagespensum konnte nicht ermittelt werden ({ex.Message}). Bitte Stunden manuell eintragen.", Severity.Warning);
+        }
+    }
 
     private TimeSpan? ZeitVonAsTimeSpan
     {
@@ -199,6 +292,7 @@
     private void AddNew()
     {
         _pause = 0;
+        _mehrtaegig = false;
         _model = new Anwesenheit
         {
             MitarbeiterId = MitarbeiterId,
@@ -211,6 +305,7 @@
 
     private void EditRecord(Anwesenheit record)
     {
+        _mehrtaegig = false;
         _model = new Anwesenheit
         {
             Id = record.Id,
@@ -238,12 +333,56 @@
 
     private async Task Save()
     {
-        _model.MitarbeiterId = MitarbeiterId;
-        _model.Datum = Datum;
-        await AnwesenheitService.SaveAsync(_model);
-        _showForm = false;
-        await LoadRecords();
-        await OnChanged.InvokeAsync();
+        if (_isSaving) return;
+        _isSaving = true;
+
+        try
+        {
+            _model.MitarbeiterId = MitarbeiterId;
+            // Im Mehrtages-Modus bestimmt der "Datum von"-Picker das Startdatum, nicht der angeklickte Tag
+            if (!_mehrtaegig)
+            {
+                _model.Datum = Datum;
+            }
+
+            if (_mehrtaegig && _model.Id == Guid.Empty && _model.DatumBis.HasValue)
+            {
+                var result = await AnwesenheitService.InsertAnwesenheitenAsync(_model, _model.DatumBis.Value);
+                Snackbar.Add(BuildBulkMeldung(result), result.AnzahlErstellt > 0 ? Severity.Success : Severity.Warning);
+            }
+            else
+            {
+                await AnwesenheitService.SaveAsync(_model);
+            }
+
+            _showForm = false;
+            _mehrtaegig = false;
+            await LoadRecords();
+            await OnChanged.InvokeAsync();
+        }
+        catch (InvalidDataException ex)
+        {
+            // Formular offen lassen, damit der User korrigieren kann
+            Snackbar.Add($"Anwesenheiten konnten nicht gespeichert werden: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private static string BuildBulkMeldung(AnwesenheitBulkResult result)
+    {
+        var meldung = $"{result.AnzahlErstellt} Tage erstellt";
+        if (result.AnzahlUebersprungen > 0)
+        {
+            var gruende = new List<string>();
+            if (result.AnzahlFeiertag > 0) gruende.Add($"{result.AnzahlFeiertag} Feiertag");
+            if (result.AnzahlKeinArbeitstag > 0) gruende.Add($"{result.AnzahlKeinArbeitstag} kein Arbeitstag");
+            if (result.AnzahlBereitsVorhanden > 0) gruende.Add($"{result.AnzahlBereitsVorhanden} bereits erfasst");
+            meldung += $", {result.AnzahlUebersprungen} übersprungen ({string.Join(", ", gruende)})";
+        }
+        return meldung;
     }
 
     private async Task DeleteRecord(Anwesenheit record)

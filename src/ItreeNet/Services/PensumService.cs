@@ -1,4 +1,5 @@
-﻿using ItreeNet.Data.Models.DB;
+﻿using ItreeNet.Data.Enums;
+using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
@@ -131,38 +132,9 @@ namespace ItreeNet.Services
                     reduktionsValue *= workload.Arbeitspensum / 100;
                 }
 
-                switch (date.DayOfWeek)
+                if (IstArbeitstag(workload, date.DayOfWeek))
                 {
-                    case DayOfWeek.Monday:
-                        if (workload.Montag)
-                        {
-                            monthlyWorkload = monthlyWorkload + stundenProTag - reduktionsValue;
-                        }
-                        break;
-                    case DayOfWeek.Tuesday:
-                        if (workload.Dienstag)
-                        {
-                            monthlyWorkload = monthlyWorkload + stundenProTag - reduktionsValue;
-                        }
-                        break;
-                    case DayOfWeek.Wednesday:
-                        if (workload.Mittwoch)
-                        {
-                            monthlyWorkload = monthlyWorkload + stundenProTag - reduktionsValue;
-                        }
-                        break;
-                    case DayOfWeek.Thursday:
-                        if (workload.Donnerstag)
-                        {
-                            monthlyWorkload = monthlyWorkload + stundenProTag - reduktionsValue;
-                        }
-                        break;
-                    case DayOfWeek.Friday:
-                        if (workload.Freitag)
-                        {
-                            monthlyWorkload = monthlyWorkload + stundenProTag - reduktionsValue;
-                        }
-                        break;
+                    monthlyWorkload = monthlyWorkload + stundenProTag - reduktionsValue;
                 }
 
                 date = date.AddDays(1);
@@ -170,5 +142,50 @@ namespace ItreeNet.Services
             
             return monthlyWorkload;
         }
+
+        public async Task<Dictionary<DateOnly, EnumArbeitstagStatus>> GetArbeitstageImZeitraumAsync(Guid mitarbeiterId, DateOnly von, DateOnly bis)
+        {
+            await using var context = await _dbFactory.CreateDbContextAsync();
+
+            var pensumHistorie = await context.TFerienArbeitspensum
+                .AsNoTracking()
+                .Where(f => f.MitarbeiterId == mitarbeiterId && f.GueltigAb <= bis)
+                .OrderBy(f => f.GueltigAb)
+                .ToListAsync();
+
+            var feiertage = await context.TArbeitszeitReduktion
+                .AsNoTracking()
+                .Where(r => r.Datum >= von && r.Datum <= bis)
+                .Select(r => r.Datum)
+                .ToHashSetAsync();
+
+            var result = new Dictionary<DateOnly, EnumArbeitstagStatus>();
+            for (var tag = von; tag <= bis; tag = tag.AddDays(1))
+            {
+                // Feiertag vor Pensum prüfen — der globale Grund hat Vorrang vor dem individuellen Wochentag-Flag
+                if (feiertage.Contains(tag))
+                {
+                    result[tag] = EnumArbeitstagStatus.Feiertag;
+                    continue;
+                }
+
+                var pensum = pensumHistorie.LastOrDefault(f => f.GueltigAb <= tag)
+                    ?? throw new InvalidDataException($"Kein Pensum für Mitarbeiter {mitarbeiterId} am {tag:dd.MM.yyyy} konfiguriert");
+
+                result[tag] = IstArbeitstag(pensum, tag.DayOfWeek) ? EnumArbeitstagStatus.Arbeitstag : EnumArbeitstagStatus.KeinArbeitstag;
+            }
+
+            return result;
+        }
+
+        private static bool IstArbeitstag(TFerienArbeitspensum pensum, DayOfWeek tag) => tag switch
+        {
+            DayOfWeek.Monday => pensum.Montag,
+            DayOfWeek.Tuesday => pensum.Dienstag,
+            DayOfWeek.Wednesday => pensum.Mittwoch,
+            DayOfWeek.Thursday => pensum.Donnerstag,
+            DayOfWeek.Friday => pensum.Freitag,
+            _ => false
+        };
     }
 }

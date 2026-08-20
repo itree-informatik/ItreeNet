@@ -13,6 +13,15 @@ namespace ItreeNet.Data.Validators
             RuleFor(a => a.Datum).NotNull().WithMessage("Bitte ein Datum eintragen.");
             RuleFor(a => a.MitarbeiterId).NotEmpty().WithMessage("MitarbeiterId fehlt.");
 
+            When(a => a.DatumBis != null, () =>
+            {
+                RuleFor(a => a.DatumBis)
+                    .GreaterThanOrEqualTo(a => a.Datum)
+                    .WithMessage("Datum bis muss nach Datum von sein.")
+                    .LessThanOrEqualTo(a => a.Datum.AddYears(1))
+                    .WithMessage("Der Zeitraum darf maximal ein Jahr umfassen.");
+            });
+
             RuleFor(a => a.Typ)
                 .NotEmpty().WithMessage("Bitte einen Typ auswählen.")
                 .Must(t => GueltigeTypen.Contains(t)).WithMessage("Ungültiger Typ.");
