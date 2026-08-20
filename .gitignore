@@ -265,6 +265,5 @@ __pycache__/
 /src/ItreeNet/FileStore/
 
 # Claude
-CLAUDE.md
 /.claude
 /src/ItreeNet/Properties/launchSettings.json

@@ -7,21 +7,22 @@ Interne Webanwendung zur **Zeiterfassung, Kunden- und Mitarbeiterverwaltung** de
 | Komponente | Technologie |
 |---|---|
 | Frontend & Backend | **Blazor Server** (.NET 10) |
-| UI-Framework | MudBlazor 9 |
-| Datenbank | SQL Server (EF Core 10) |
+| UI-Framework | MudBlazor 9 + ItreeMud (hauseigene Komponentenbibliothek) |
+| Datenbank | PostgreSQL (EF Core 10 / Npgsql) |
 | Authentifizierung | Azure AD (Microsoft Identity Web / OIDC) |
-| Logging | Serilog (Console + SQL Server) |
+| Logging | Serilog (Console + PostgreSQL) |
 | Validierung | FluentValidation |
 | Mapping | AutoMapper |
 | Dokumentenerzeugung | GemBox.Document, ClosedXML |
 | E-Mail | Azure Communication Services |
 | Deployment | Docker Container → Azure Web App |
-| CI/CD | Azure DevOps (Multi-Stage Pipeline) |
+| CI/CD | GitHub Actions (Multi-Stage Pipeline) |
 
 ## Voraussetzungen
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- SQL Server Instanz
+- PostgreSQL-Instanz
+- Zugriff auf den GitHub-Packages-Feed `itree-informatik` (liefert das NuGet-Paket **ItreeMud**; Feed lokal in der globalen NuGet-Konfiguration registrieren)
 - [Azure AD](https://portal.azure.com/) — App-Registrierung mit OIDC-Konfiguration
 - **AutoMapper Lizenz** — kommerzieller Lizenzschlüssel erforderlich ([automapper.org](https://automapper.org/))
 - **GemBox.Document Lizenz** — kommerzieller Lizenzschlüssel für Dokumentenerzeugung ([gemboxsoftware.com](https://www.gemboxsoftware.com/))
@@ -40,7 +41,7 @@ Struktur der `secrets.json` (Beispielwerte):
 ```json
 {
   "ConnectionStrings": {
-    "APP": "Server=localhost;Database=ItreeNet;User Id=sa;Password=YourPassword;TrustServerCertificate=True",
+    "APP": "Host=localhost;Database=ItreeNet;Username=postgres;Password=YourPassword",
     "Mail": "endpoint=https://your-acs-resource.communication.azure.com;accesskey=YOUR_ACCESS_KEY"
   },
   "AzureAd": {
@@ -74,7 +75,7 @@ git clone https://github.com/itree-informatik/ItreeNet.git
 cd ItreeNet
 
 # NuGet-Pakete wiederherstellen & bauen
-dotnet build src/ItreeNet.sln
+dotnet build src/ItreeNet.slnx
 
 # Anwendung starten
 dotnet run --project src/ItreeNet/ItreeNet.csproj
@@ -99,9 +100,9 @@ src/ItreeNet/
 ├── Data/
 │   ├── Models/
 │   │   └── DB/             # EF Core Entities (T-Präfix, z. B. TMitarbeiter)
+│   ├── Enums/              # Enum-Definitionen
 │   ├── Validators/         # FluentValidation-Regeln
-│   ├── Extensions/         # AutoMapper-Profile, Hilfsmethoden
-│   └── Database/           # SQL-Migrationsskripte (01–12)
+│   └── Extensions/         # AutoMapper-Profile, Hilfsmethoden
 ├── Middleware/             # UserInfoClaims (Azure AD → IsIntern)
 └── wwwroot/                # Statische Dateien
 ```
@@ -111,13 +112,13 @@ src/ItreeNet/
 Die Anwendung läuft vollständig serverseitig via **SignalR** — kein WebAssembly, keine separate API.
 
 - **Authentifizierung:** Azure AD (OIDC). Ein Custom-Middleware ordnet den angemeldeten Benutzer einem `TMitarbeiter`-Datensatz zu und setzt den `IsIntern`-Claim.
-- **Autorisierung:** Interne Seiten (`Pages/Intern/`) erfordern `IsIntern=true`.
-- **Datenbank:** EF Core mit `DbContextFactory` — Services erzeugen kurzlebige Kontexte via `CreateDbContext()`.
-- **Migrationen:** SQL-Skripte in `Data/Database/`, keine EF-Migrationen.
+- **Autorisierung:** Interne Seiten (Routen unter `/intern/...`) erfordern `IsIntern=true`.
+- **Datenbank:** EF Core mit `DbContextFactory` — Services erzeugen kurzlebige Kontexte via `CreateDbContextAsync()`.
+- **Schema:** DB-first — der `ZeiterfassungContext` ist gescaffoldet; keine EF-Migrationen, keine Migrationsskripte im Repo.
 
 ## CI/CD
 
-GitHub Actions Pipeline (`.github/workflows/build-itree.yml`) mit vier Jobs:
+GitHub Actions Pipeline (`.github/workflows/build.yml`) mit vier Jobs:
 
 1. **Versioning** — Semantische Versionierung aus Branch/Tag
 2. **Build** — `dotnet restore` + `dotnet build`
