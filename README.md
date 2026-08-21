@@ -1,6 +1,6 @@
 # ItreeNet
 
-Interne Webanwendung zur **Zeiterfassung, Kunden- und Mitarbeiterverwaltung** der itree GmbH.
+Interne Webanwendung zur **Zeiterfassung, Kunden- und Mitarbeiterverwaltung** der itree informatik GmbH.
 
 ## Tech-Stack
 
