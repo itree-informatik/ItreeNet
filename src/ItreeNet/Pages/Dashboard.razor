@@ -129,7 +129,7 @@
     </div>
 
     @*Tiles - replaced TelerikTileLayout with MudGrid*@
-    <MudGrid Class="bg-tilelayout" Style="margin-left: -16px; margin-right: -16px;">
+    <MudGrid Class="bg-tilelayout" Style="margin-left: -16px; margin-right: -16px; margin-bottom: 32px;">
         <!-- Top 5 Buchungen (ColSpan=2 -> md=8) -->
         <MudItem xs="12" md="8">
             <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
@@ -282,7 +282,7 @@
         {
         <!-- Projekt Buchungen (ColSpan=2 -> md=8) -->
         <MudItem xs="12" md="8">
-            <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
+            <MudPaper Class="shadow pa-3" Style="height:345px;overflow:hidden;display:flex;flex-direction:column;">
                 <div class="row no-gutters align-items-center mb-2">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Aktive Projekte</div>
@@ -294,7 +294,7 @@
                 </div>
                 @if (_dashboardProjekts != null)
                 {
-                    <div style="height: 100%; overflow: auto;">
+                    <div style="flex: 1 1 auto; min-height: 0; overflow: auto;">
                         <table class="table table-sm table-borderless @_tableTheme table-hover table-striped align-middle">
                             <thead>
                                 <tr class="text-gray-800">
@@ -550,7 +550,7 @@
         {
         <!-- Frontendtests (ColSpan=2 -> md=8) -->
         <MudItem xs="12" md="8">
-            <MudPaper Class="shadow pa-3" Style="height:345px;overflow:auto;">
+            <MudPaper Class="shadow pa-3" Style="height:345px;overflow:hidden;display:flex;flex-direction:column;">
                 <div class="row no-gutters align-items-center mb-2">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Frontendtests AVG</div>
@@ -562,7 +562,7 @@
                 </div>
                 @if (_dashboardFrontendtests != null)
                 {
-                    <div style="height: 100%; overflow: auto;">
+                    <div style="flex: 1 1 auto; min-height: 0; overflow: auto;">
                         <table class="table table-sm table-borderless @_tableTheme table-hover table-striped align-middle">
                             <thead>
                             <tr class="text-gray-800">
@@ -682,16 +682,17 @@
                         <ItreeButtonGroup Id="modal_confirm_buttons" Position="EnumButtonGroupPosition.Rechts">
                             @if (_loadingAbschluss)
                             {
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="true" OnClick="@CreateAbschluss">
-                                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="true" OnClick="@CreateAbschluss">
+                                    <MudProgressCircular Indeterminate="true" Color="Color.Inherit" Size="Size.Small" Class="mr-2" />
+                                    Ja
                                 </MudButton>
                             }
                             else
                             {
-                                <MudButton OnClick="@CreateAbschluss" StartIcon="@Icons.Material.Filled.Check" Variant="Variant.Filled" Color="Color.Primary"
-                                           Class="text-success" Disabled="!ButtonEnabled" />
+                                <MudButton OnClick="@CreateAbschluss" StartIcon="@Icons.Material.Filled.Check" Variant="Variant.Filled" Color="Color.Success"
+                                           Disabled="!ButtonEnabled">Ja</MudButton>
                             }
-                            <MudButton OnClick="@(() => _showAbschluss = false)" StartIcon="@Icons.Material.Filled.Close" Variant="Variant.Filled" Color="Color.Primary" Class="text-danger" />
+                            <MudButton OnClick="@(() => _showAbschluss = false)" StartIcon="@Icons.Material.Filled.Close" Variant="Variant.Filled" Color="Color.Error">Nein</MudButton>
                         </ItreeButtonGroup>
                     </MudStack>
                 </div>
@@ -810,28 +811,24 @@
     @if (_showDeleteFrontendtests)
     {
         <MudOverlay Visible="true" DarkBackground="true" ZIndex="1300">
-            <MudPaper Class="pa-4" Style="width:280px;max-width:95vw;max-height:90vh;overflow-y:auto;">
+            <MudPaper Class="pa-4" Style="width:420px;max-width:95vw;max-height:90vh;overflow-y:auto;">
                 <MudText Typo="Typo.h6" Class="mb-3">Löschen Frontendtestergebnisse</MudText>
                 <div class="p-2">
-                    Willst du bis auf die letzen 20 Frontendtests alle löschen?
+                    Willst du bis auf die letzten 20 Frontendtests alle löschen?
                 </div>
                 <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
                     <div class="pe-1">
-                        <MudButton OnClick="@DeleteFrontendtests" Variant="Variant.Filled" Color="Color.Primary" Disabled="_loadingDeleteFrontendtests">
+                        <MudButton OnClick="@DeleteFrontendtests" Variant="Variant.Filled" Color="Color.Success" Disabled="_loadingDeleteFrontendtests"
+                                   StartIcon="@(_loadingDeleteFrontendtests ? null : Icons.Material.Filled.Check)">
                             @if (_loadingDeleteFrontendtests)
                             {
-                                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
-                            }
-                            else
-                            {
-                                <span class="bi bi-check text-success align-middle"></span>
+                                <MudProgressCircular Indeterminate="true" Color="Color.Inherit" Size="Size.Small" Class="mr-2" />
                             }
                             Ja
                         </MudButton>
                     </div>
                     <div class="pe-2">
-                        <MudButton OnClick="@ToggleShowDelete" Variant="Variant.Filled" Color="Color.Primary">
-                            <span class="bi bi-x text-danger align-middle"></span>
+                        <MudButton OnClick="@ToggleShowDelete" Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Close">
                             Nein
                         </MudButton>
                     </div>
