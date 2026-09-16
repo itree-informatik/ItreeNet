@@ -93,20 +93,7 @@ namespace ItreeNet.Services
         {
             await using var context = await _dbFactory.CreateDbContextAsync();
 
-            if (model.Id == Guid.Empty)
-            {
-                model.Id = Guid.NewGuid();
-
-                var tModel = _mapper.Map<TProjekt>(model);
-                context.TProjekt.Add(tModel);
-            }
-            else
-            {
-                var tModel = _mapper.Map<TProjekt>(model);
-                context.Entry(tModel).State = EntityState.Modified;
-            }
-
-            await context.SaveChangesAsync();
+            await SaveWithCascadeAsync(context, model);
 
             return await GetAllAsync();
         }
@@ -115,53 +102,83 @@ namespace ItreeNet.Services
         {
             await using var context = await _dbFactory.CreateDbContextAsync();
 
+            await SaveWithCascadeAsync(context, model);
+
+            return model;
+        }
+
+        private async Task SaveWithCascadeAsync(ZeiterfassungContext context, Projekt model)
+        {
             if (model.Id == Guid.Empty)
             {
                 model.Id = Guid.NewGuid();
 
-                var tModel = _mapper.Map<TProjekt>(model);
-                context.TProjekt.Add(tModel);
+                var tNeu = _mapper.Map<TProjekt>(model);
+                context.TProjekt.Add(tNeu);
+
+                await context.SaveChangesAsync();
+                return;
             }
-            else
-            {
-                var tModel = _mapper.Map<TProjekt>(model);
-                context.Entry(tModel).State = EntityState.Modified;
-            }
+
+            var bisher = await context.TProjekt
+                .AsNoTracking()
+                .Where(p => p.Id == model.Id)
+                .Select(p => new { p.Aktiv, KundeIntern = p.Kunde.Intern })
+                .SingleOrDefaultAsync();
+
+            var tModel = _mapper.Map<TProjekt>(model);
+            context.Entry(tModel).State = EntityState.Modified;
 
             await context.SaveChangesAsync();
 
-            return model;
+            // Das Projekt wird gerade deaktiviert, also ziehen die Aktivitäten nach. Projekte
+            // des internen Kunden sind ausgenommen: an ihnen hängen die Ferien- und
+            // Gleitzeit-Aktivitäten, die weiterhin bebuchbar bleiben müssen.
+            if (bisher is { Aktiv: true, KundeIntern: false } && !model.Aktiv)
+            {
+                await DeactivateVorgaengeAsync(context, model.Id);
+            }
         }
 
         public async Task<List<Projekt>> DeleteAsync(Projekt model)
         {
             await using var context = await _dbFactory.CreateDbContextAsync();
 
-            var anyVorhaben = await context.TVorgang.Where(v => v.ProjektId == model.Id).ToListAsync();
+            var hasVorhaben = await context.TVorgang.AnyAsync(v => v.ProjektId == model.Id);
 
-            if (anyVorhaben.Any())
+            if (hasVorhaben)
             {
+                var kundeIntern = await context.TProjekt
+                    .AsNoTracking()
+                    .Where(p => p.Id == model.Id)
+                    .Select(p => p.Kunde.Intern)
+                    .SingleOrDefaultAsync();
+
                 model.Aktiv = false;
                 var tModel = _mapper.Map<TProjekt>(model);
                 context.Entry(tModel).State = EntityState.Modified;
+                await context.SaveChangesAsync();
 
-                var aktiveVorhaben = anyVorhaben.Where(v => v.Aktiv).ToList();
-
-                foreach (var vorhaben in aktiveVorhaben)
+                if (!kundeIntern)
                 {
-                    vorhaben.Aktiv = false;
-                    context.Entry(vorhaben).State = EntityState.Modified;
+                    await DeactivateVorgaengeAsync(context, model.Id);
                 }
             }
             else
             {
                 var tModel = _mapper.Map<TProjekt>(model);
                 context.TProjekt.Remove(tModel);
+                await context.SaveChangesAsync();
             }
 
-            await context.SaveChangesAsync();
-
             return await ProjectsByCustomerIdAsync(model.KundeId, EnumStatus.Alle);
+        }
+
+        private static async Task DeactivateVorgaengeAsync(ZeiterfassungContext context, Guid projektId)
+        {
+            await context.TVorgang
+                .Where(v => v.ProjektId == projektId && v.Aktiv)
+                .ExecuteUpdateAsync(s => s.SetProperty(v => v.Aktiv, false));
         }
     }
 }

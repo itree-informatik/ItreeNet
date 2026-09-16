@@ -45,6 +45,7 @@ Es gibt **kein** generisches `BaseActionService`/`BaseActionController`-Muster w
 
 - `ZeiterfassungContext` (`Data/Models/DB/zeiterfassungContext.cs`) ist DB-first gescaffoldet; Schemaänderungen erfolgen direkt in der Datenbank, es gibt keine Migrationsskripte im Repo.
 - Zugriff **immer** über `IDbContextFactory<ZeiterfassungContext>`: `await using var context = await _dbFactory.CreateDbContextAsync();` — kurzlebige Kontexte pro Operation (Blazor-Server-Muster).
+- **Alle über EF laufenden DB-Objekte sind kleingeschrieben**: `OnModelCreating` zieht Schema, Tabellen, Spalten, Keys und Indizes per `ToLower()` runter (`zeiterfassungContext.cs:67`). Die Entity heisst `TKunde` mit `[Table("T_Kunde")]`, in der Datenbank steht aber `dbo.t_kunde` mit den Spalten `id`, `aktiv`, `kundeid`. Handgeschriebenes SQL deshalb durchgehend klein und **ohne** doppelte Anführungszeichen schreiben — `"Aktiv"` findet die Spalte nicht.
 - Serilog loggt in die Tabelle `TLog` derselben PostgreSQL-Datenbank (Schema `dbo`).
 
 ### Auth & Berechtigungen
@@ -69,6 +70,7 @@ Es gibt **kein** generisches `BaseActionService`/`BaseActionController`-Muster w
 - **Monatsabschluss** (`BuchungsService.CreateMonatsAbschluss`): rechnet ab dem gewählten Monat immer bis zum Vormonat durch — Salden werden lückenlos fortgeschrieben, die UI dokumentiert das.
 - **Pensumswechsel** (`TFerienArbeitspensum.GueltigAb`): erfolgen organisatorisch immer zum Monatsersten; die Monatsberechnung lädt das Pensum deshalb bewusst nur am Monatsanfang.
 - **`TVorgang.AnzahlStunden`** = geschätztes Stundenbudget. Projekte ohne jedes Budget fehlen absichtlich in der Dashboard-Auslastung; Positionen ohne Schätzung fließen aber in die Prozentrechnung ein.
+- **Deaktivierung kaskadiert nach unten** (`KundenService`/`ProjektService`, Save- **und** Delete-Pfad): Kunde inaktiv → alle Projekte und Aktivitäten inaktiv; Projekt inaktiv → alle Aktivitäten inaktiv. Ausgelöst wird das nur beim Übergang aktiv → inaktiv, nie in der Gegenrichtung — ein reaktivierter Kunde lässt seine Projekte bewusst inaktiv. **Der interne Kunde (`TKunde.Intern`) ist ausgenommen**, an ihm hängen die Ferien- und Gleitzeit-Aktivitäten (`TVorgang.Ferien`/`.Gleitzeit`), die bebuchbar bleiben müssen.
 - **PostgreSQL nutzt bewusst das Schema `dbo`** (`HasDefaultSchema("dbo")` im Context, Serilog loggt nach `dbo.T_Log`) — kein SQL-Server-Relikt.
 
 ## CI/CD

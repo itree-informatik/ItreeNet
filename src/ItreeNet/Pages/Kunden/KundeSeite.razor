@@ -463,11 +463,24 @@ else
 
     private async Task OnSaveProjekt()
     {
+        var wurdeDeaktiviert = _selectedProjektOriginal?.Aktiv == true && !_selectedProjekt!.Aktiv;
+
         var model = await ProjektService.SaveSingleAsync(_selectedProjekt!);
         _selectedProjekt = model.Clone();
         _selectedProjektOriginal = _selectedProjekt.Clone();
         _editContextProjekt = new(_selectedProjekt!);
         _projekte = await ProjektService.ProjectsByCustomerIdAsync(KundenId);
+
+        if (wurdeDeaktiviert)
+        {
+            // Die Aktivitäten wurden serverseitig nachgezogen. Ein offenes Formular würde
+            // sonst beim nächsten Speichern den alten Aktiv-Wert zurückschreiben.
+            _aktivitaeten = await VorgangService.GetAllProjecIdAsync(_selectedProjekt!.Id, false);
+            _selectedAktivitaet = null;
+            _selectedAktivitaetOriginal = null;
+            _showBuchungen = false;
+            _buchungen = null;
+        }
     }
 
     private async Task OnSaveAktivitaet()

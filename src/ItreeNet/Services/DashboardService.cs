@@ -413,7 +413,7 @@ namespace ItreeNet.Services
                 .Include(p => p.Kunde)
                 .ThenInclude(p => p.Team)
                 .Include(p => p.TVorgang)
-                .Where(x => x.Aktiv == true && !x.Kunde.Intern && x.TVorgang.Where(v => v.AnzahlStunden > 0 && v.Aktiv).Sum(v => v.AnzahlStunden) > 0)
+                .Where(x => x.Aktiv == true && x.Kunde.Aktiv && !x.Kunde.Intern && x.TVorgang.Where(v => v.AnzahlStunden > 0 && v.Aktiv).Sum(v => v.AnzahlStunden) > 0)
                 .ToListAsync();
 
             var allVorgangIds = tProjekte
