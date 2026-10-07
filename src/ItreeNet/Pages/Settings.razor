@@ -173,8 +173,12 @@ else
                              SortMode="SortMode.Multiple" FilterMode="DataGridFilterMode.ColumnFilterRow"
                              RowClick="@(args => OpenDialog(args.Item, "edit"))">
                     <ToolBarContent>
-                        <MudDatePicker @bind-Date="_releaseVon" DateFormat="dd.MM.yyyy" Margin="Margin.Dense" Style="max-width:150px;" Label="Von" />
-                        <MudDatePicker @bind-Date="_releaseBis" DateFormat="dd.MM.yyyy" Margin="Margin.Dense" Style="max-width:150px;" Class="ml-2" Label="Bis" />
+                        <div style="width:150px;">
+                            <MudDatePicker @bind-Date="_releaseVon" DateFormat="dd.MM.yyyy" Margin="Margin.Dense" Label="Von" />
+                        </div>
+                        <div style="width:150px;" class="ml-2">
+                            <MudDatePicker @bind-Date="_releaseBis" DateFormat="dd.MM.yyyy" Margin="Margin.Dense" Label="Bis" />
+                        </div>
                         <MudIconButton Icon="@Icons.Material.Filled.Search" Size="Size.Small" Class="ml-2" OnClick="@LoadReleases" />
                     </ToolBarContent>
                     <Columns>
