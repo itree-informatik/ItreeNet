@@ -1,0 +1,20 @@
+# Textdateien im Repo immer mit LF speichern; im Arbeitsverzeichnis
+# sind CRLF (Windows) und LF (Linux) erlaubt und gelten nicht als Änderung.
+* text=auto
+
+# Binärdateien nie konvertieren
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.mp4  binary
+*.eot  binary
+*.otf  binary
+*.ttf  binary
+*.woff binary
+*.woff2 binary
+*.docx binary
+*.xlsx binary
+*.pdf  binary
