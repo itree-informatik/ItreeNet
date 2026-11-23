@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+﻿using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
@@ -9,12 +9,10 @@ namespace ItreeNet.Services
     public class TeamService : ITeamService
     {
         private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
-        private readonly IMapper _mapper;
 
-        public TeamService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper) 
+        public TeamService(IDbContextFactory<ZeiterfassungContext> dbFactory) 
         {
             _dbFactory = dbFactory;
-            _mapper = mapper;
         }
 
         public async Task<List<Team>> GetAllAsync()
@@ -26,7 +24,7 @@ namespace ItreeNet.Services
                 .OrderBy(a => a.Sort)
                 .ToListAsync();
 
-            return _mapper.Map<List<Team>>(tAll);
+            return tAll.Select(x => x.ToModel()).ToList();
         }
 
         public async Task<List<Team>> GetAllActiveAsync()
@@ -39,7 +37,7 @@ namespace ItreeNet.Services
                 .OrderBy(a => a.Sort)
                 .ToListAsync();
 
-            return _mapper.Map<List<Team>>(tAll);
+            return tAll.Select(x => x.ToModel()).ToList();
         }
 
         public async Task<List<Team>> SaveAsync(Team model)
@@ -50,12 +48,12 @@ namespace ItreeNet.Services
             {
                 model.Id = Guid.NewGuid();
 
-                var tModel = _mapper.Map<TTeam>(model);
+                var tModel = model.ToEntity();
                 context.TTeam.Add(tModel);
             }
             else
             {
-                var tModel = _mapper.Map<TTeam>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
             }
 
@@ -74,12 +72,12 @@ namespace ItreeNet.Services
             if (tMitarbeiter || tKunde)
             {
                 model.Aktiv = false;
-                var tModel = _mapper.Map<TTeam>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
             }
             else
             {
-                var tModel = _mapper.Map<TTeam>(model);
+                var tModel = model.ToEntity();
                 context.TTeam.Remove(tModel);
             }
 

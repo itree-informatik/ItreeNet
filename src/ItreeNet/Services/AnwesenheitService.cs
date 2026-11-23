@@ -1,5 +1,5 @@
-using AutoMapper;
 using ItreeNet.Data.Enums;
+using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
@@ -11,14 +11,12 @@ namespace ItreeNet.Services
     public class AnwesenheitService : IAnwesenheitService
     {
         private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
-        private readonly IMapper _mapper;
         private readonly UserService _userService;
         private readonly IPensumService _pensumService;
 
-        public AnwesenheitService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper, UserService userService, IPensumService pensumService)
+        public AnwesenheitService(IDbContextFactory<ZeiterfassungContext> dbFactory, UserService userService, IPensumService pensumService)
         {
             _dbFactory = dbFactory;
-            _mapper = mapper;
             _userService = userService;
             _pensumService = pensumService;
         }
@@ -34,7 +32,7 @@ namespace ItreeNet.Services
                 .OrderBy(a => a.Datum)
                 .ToListAsync();
 
-            return _mapper.Map<List<Anwesenheit>>(records);
+            return records.Select(x => x.ToModel()).ToList();
         }
 
         public async Task<Anwesenheit?> GetByIdAsync(Guid id)
@@ -46,7 +44,7 @@ namespace ItreeNet.Services
                 .Include(a => a.Mitarbeiter)
                 .SingleOrDefaultAsync(a => a.Id == id);
 
-            return record == null ? null : _mapper.Map<Anwesenheit>(record);
+            return record.ToModel();
         }
 
         public async Task<Anwesenheit> SaveAsync(Anwesenheit model)
@@ -56,12 +54,12 @@ namespace ItreeNet.Services
             if (model.Id == Guid.Empty)
             {
                 model.Id = Guid.NewGuid();
-                var tModel = _mapper.Map<TAnwesenheit>(model);
+                var tModel = model.ToEntity();
                 context.TAnwesenheit.Add(tModel);
             }
             else
             {
-                var tModel = _mapper.Map<TAnwesenheit>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
             }
 
@@ -168,7 +166,7 @@ namespace ItreeNet.Services
 
             var tResult = await query.OrderByDescending(a => a.Datum).Take(1000).ToListAsync();
 
-            return _mapper.Map<List<Anwesenheit>>(tResult);
+            return tResult.Select(x => x.ToModel()).ToList();
         }
     }
 }

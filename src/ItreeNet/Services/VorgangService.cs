@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+﻿using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
@@ -9,12 +9,10 @@ namespace ItreeNet.Services
     public class VorgangService : IVorgangService
     {
         private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
-        private readonly IMapper _mapper;
 
-        public VorgangService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper)
+        public VorgangService(IDbContextFactory<ZeiterfassungContext> dbFactory)
         {
             _dbFactory = dbFactory;
-            _mapper = mapper;
         }
 
         public async Task<List<Vorgang>> GetAllAsync()
@@ -27,7 +25,7 @@ namespace ItreeNet.Services
                 .ThenInclude(p => p.Kunde)
                 .ToListAsync();
 
-            var all = _mapper.Map<List<Vorgang>>(tAll);
+            var all = tAll.Select(x => x.ToModel()).ToList();
             return await GetBookedTimeOfVorgang(all);
         }
 
@@ -42,7 +40,7 @@ namespace ItreeNet.Services
                 .Where(x => x.Aktiv == true)
                 .ToListAsync();
 
-            var all = _mapper.Map<List<Vorgang>>(tAll);
+            var all = tAll.Select(x => x.ToModel()).ToList();
             return await GetBookedTimeOfVorgang(all);
         }
 
@@ -68,7 +66,7 @@ namespace ItreeNet.Services
                 vorgaenge = vorgaenge.Where(x => x.Aktiv).ToList();
             }
 
-            var all = _mapper.Map<List<Vorgang>>(vorgaenge);
+            var all = vorgaenge.Select(x => x.ToModel()).ToList();
             return await GetBookedTimeOfVorgang(all);
         }
 
@@ -83,7 +81,7 @@ namespace ItreeNet.Services
                 .SingleOrDefaultAsync(v => v.Id == vorgangId)
                 ?? throw new InvalidDataException($"Vorgang {vorgangId} nicht gefunden");
 
-            var model = _mapper.Map<Vorgang>(tVorgang);
+            var model = tVorgang.ToModel();
             model.GebuchteStunden = await GetBookedTimeVorgangAsync(model.Id);
 
             return model;
@@ -100,7 +98,7 @@ namespace ItreeNet.Services
                 .SingleOrDefaultAsync(v => v.Id == vorgangId)
                 ?? throw new InvalidDataException($"Vorgang {vorgangId} nicht gefunden");
 
-            return _mapper.Map<Kunde>(tVorgang.Projekt.Kunde);
+            return tVorgang.Projekt.Kunde.ToModel();
         }
 
         public async Task<Projekt> GetProjektFromVorgangIdAsync(Guid vorgangId)
@@ -114,7 +112,7 @@ namespace ItreeNet.Services
                 .SingleOrDefaultAsync(v => v.Id == vorgangId)
                 ?? throw new InvalidDataException($"Vorgang {vorgangId} nicht gefunden");
 
-            return _mapper.Map<Projekt>(tVorgang.Projekt);
+            return tVorgang.Projekt.ToModel();
         }
 
         public async Task<List<Vorgang>> SaveAsync(Vorgang model)
@@ -125,12 +123,12 @@ namespace ItreeNet.Services
             {
                 model.Id = Guid.NewGuid();
 
-                var tModel = _mapper.Map<TVorgang>(model);
+                var tModel = model.ToEntity();
                 context.TVorgang.Add(tModel);
             }
             else
             {
-                var tModel = _mapper.Map<TVorgang>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
             }
 
@@ -147,12 +145,12 @@ namespace ItreeNet.Services
             {
                 model.Id = Guid.NewGuid();
 
-                var tModel = _mapper.Map<TVorgang>(model);
+                var tModel = model.ToEntity();
                 context.TVorgang.Add(tModel);
             }
             else
             {
-                var tModel = _mapper.Map<TVorgang>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
             }
 
@@ -170,12 +168,12 @@ namespace ItreeNet.Services
             if (anyBuchungen)
             {
                 model.Aktiv = false;
-                var tModel = _mapper.Map<TVorgang>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
             }
             else
             {
-                var tModel = _mapper.Map<TVorgang>(model);
+                var tModel = model.ToEntity();
                 context.TVorgang.Remove(tModel);
             }
             

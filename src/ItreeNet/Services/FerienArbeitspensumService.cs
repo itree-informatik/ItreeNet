@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+﻿using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
@@ -9,12 +9,10 @@ namespace ItreeNet.Services
     public class FerienArbeitspensumService : IFerienArbeitspensumService
     {
         private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
-        private readonly IMapper _mapper;
 
-        public FerienArbeitspensumService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper)
+        public FerienArbeitspensumService(IDbContextFactory<ZeiterfassungContext> dbFactory)
         {
             _dbFactory = dbFactory;
-            _mapper = mapper;
         }
 
         public async Task<List<FerienArbeitspensum>> GetAllAsync(Guid mitarbeiterId)
@@ -27,7 +25,7 @@ namespace ItreeNet.Services
                 .OrderByDescending(f => f.GueltigAb)
                 .ToListAsync();
 
-            return _mapper.Map<List<FerienArbeitspensum>>(tFerienPensen);
+            return tFerienPensen.Select(x => x.ToModel()).ToList();
         }
         public async Task<List<FerienArbeitspensum>> SaveAsync(FerienArbeitspensum model)
         {
@@ -37,12 +35,12 @@ namespace ItreeNet.Services
             {
                 model.Id = Guid.NewGuid();
 
-                var tModel = _mapper.Map<TFerienArbeitspensum>(model);
+                var tModel = model.ToEntity();
                 context.TFerienArbeitspensum.Add(tModel);
             }
             else
             {
-                var tModel = _mapper.Map<TFerienArbeitspensum>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
             }
 

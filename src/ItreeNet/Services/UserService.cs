@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using ItreeNet.Data.Enums;
+﻿using ItreeNet.Data.Enums;
 using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
@@ -11,13 +10,11 @@ namespace ItreeNet.Services
     public class UserService
     {
         private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
-        private readonly IMapper _mapper;
         public Benutzer? CurrentUser { get; private set; }
 
-        public UserService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper)
+        public UserService(IDbContextFactory<ZeiterfassungContext> dbFactory)
         {
             _dbFactory = dbFactory;
-            _mapper = mapper;
         }
 
         public async Task<Benutzer> CreateBenutzer(Benutzer benutzer, List<string> groups)
@@ -57,7 +54,7 @@ namespace ItreeNet.Services
 
                     if (profil != null)
                     {
-                        benutzer.Profil = _mapper.Map<Profil>(profil);
+                        benutzer.Profil = profil.ToModel();
 
                         if (benutzer.Profil != null)
                         {
@@ -86,7 +83,7 @@ namespace ItreeNet.Services
                             Wert = profilEinstellungenString
                         };
 
-                        var newTprofil = _mapper.Map<TProfil>(newProfile);
+                        var newTprofil = newProfile.ToEntity();
                         context.TProfil.Add(newTprofil);
                         await context.SaveChangesAsync();
                     }

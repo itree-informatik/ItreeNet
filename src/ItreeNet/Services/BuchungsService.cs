@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using ItreeMud.Extensions;
+﻿using ItreeMud.Extensions;
 using ItreeNet.Data.Enums;
 using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
@@ -14,7 +13,6 @@ namespace ItreeNet.Services
     public class BuchungsService : IBuchungsService
     {
         private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
-        private readonly IMapper _mapper;
         private readonly IVorgangService _vorgangService;
         private readonly IPensumService _pensumService;
         private readonly UserService _userService;
@@ -22,11 +20,10 @@ namespace ItreeNet.Services
         private readonly IMailService _mailService;
         private readonly IProjektService _projektService;
 
-        public BuchungsService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper, IVorgangService vorgangService, UserService userService, 
+        public BuchungsService(IDbContextFactory<ZeiterfassungContext> dbFactory, IVorgangService vorgangService, UserService userService, 
             IPensumService pensumService, IMitarbeiterService mitarbeiterService, IMailService mailService, IProjektService projektService)
         {
             _dbFactory = dbFactory;
-            _mapper = mapper;
             _vorgangService = vorgangService;
             _userService = userService;
             _pensumService = pensumService;
@@ -100,7 +97,7 @@ namespace ItreeNet.Services
             await using var context = await _dbFactory.CreateDbContextAsync();
 
             booking = await ChangedByUserAsync(booking);
-            var tBuchung = _mapper.Map<TBuchung>(booking);
+            var tBuchung = booking.ToEntity();
 
             context.Entry(tBuchung).State = EntityState.Modified;
             await context.SaveChangesAsync();
@@ -169,7 +166,7 @@ namespace ItreeNet.Services
         public async Task<List<Buchungstag>> DeleteBuchungAsync(Buchung booking, bool isWeek)
         {
             await using var context = await _dbFactory.CreateDbContextAsync();
-            var tBuchung = _mapper.Map<TBuchung>(booking);
+            var tBuchung = booking.ToEntity();
             context.TBuchung.Remove(tBuchung);
             await context.SaveChangesAsync();
 
@@ -216,15 +213,15 @@ namespace ItreeNet.Services
 
             var tResult = await query.Take(1000).OrderByDescending(d => d.Datum).ToListAsync();
 
-            var result = _mapper.Map<List<Buchung>>(tResult);
+            var result = tResult.Select(x => x.ToModel()).ToList();
 
             for (var i = 0; i < result.Count; i++)
             {
                 var t = tResult[i];
-                result[i].Vorgang = _mapper.Map<Vorgang>(t.Vorgang);
+                result[i].Vorgang = t.Vorgang.ToModel();
                 result[i].KundenName = t.Vorgang?.Projekt?.Kunde?.Kundenname;
                 result[i].ProjektName = t.Vorgang?.Projekt?.Bezeichnung;
-                result[i].Mitarbeiter = _mapper.Map<Mitarbeiter>(t.Mitarbeiter);
+                result[i].Mitarbeiter = t.Mitarbeiter.ToModel();
             }
 
             return result;
@@ -283,7 +280,7 @@ namespace ItreeNet.Services
             foreach (var buchungstag in buchungstage)
             {
                 var tBuchungList = tBookings.Where(d => d.Datum == buchungstag.Date).ToList();
-                var buchungListe = _mapper.Map<List<Buchung>>(tBuchungList);
+                var buchungListe = tBuchungList.Select(x => x.ToModel()).ToList();
 
                 for (var i = 0; i < buchungListe.Count; i++)
                 {
@@ -296,7 +293,7 @@ namespace ItreeNet.Services
 
                     if (buchung.ChangedBy != null && buchung.ChangedBy != Guid.Empty && tBuchung.ChangedByNavigation != null)
                     {
-                        buchung.ChangedByMitarbeiter = _mapper.Map<Mitarbeiter>(tBuchung.ChangedByNavigation);
+                        buchung.ChangedByMitarbeiter = tBuchung.ChangedByNavigation.ToModel();
                     }
 
                     if (buchung.OriginalVorgangId != null && buchung.OriginalVorgangId != Guid.Empty)
@@ -314,7 +311,7 @@ namespace ItreeNet.Services
             await using var context = await _dbFactory.CreateDbContextAsync();
             model = await ChangedByUserAsync(model);
             model.Id = Guid.NewGuid();
-            var tBuchung = _mapper.Map<TBuchung>(model);
+            var tBuchung = model.ToEntity();
             context.TBuchung.Add(tBuchung);
             await context.SaveChangesAsync();
             await SendMailAsync(model.VorgangId);

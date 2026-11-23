@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using ItreeNet.Data.Enums;
+﻿using ItreeNet.Data.Enums;
 using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
@@ -13,7 +12,6 @@ namespace ItreeNet.Services
     public class DashboardService : IDashboardService
     {
         private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
-        private readonly IMapper _mapper;
         private readonly IMitarbeiterService _mitarbeiterService;
         private readonly IVorgangService _vorgangService;
         private readonly UserService _userService;
@@ -23,10 +21,9 @@ namespace ItreeNet.Services
         private bool _pipelinesEnabled;
         private int _updateInHours = 4;
 
-        public DashboardService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper, IMitarbeiterService mitarbeiterService, IVorgangService vorgangService, UserService userService, IConfiguration config)
+        public DashboardService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMitarbeiterService mitarbeiterService, IVorgangService vorgangService, UserService userService, IConfiguration config)
         {
             _dbFactory = dbFactory;
-            _mapper = mapper;
             _mitarbeiterService = mitarbeiterService;
             _vorgangService = vorgangService;
             _userService = userService;
@@ -356,7 +353,7 @@ namespace ItreeNet.Services
             foreach (var group in groups)
             {
                 var tBuchungen = list.Where(b => b.VorgangId == group.Key).ToList();
-                var vorgang = _mapper.Map<Vorgang>(tBuchungen.First().Vorgang);
+                var vorgang = tBuchungen.First().Vorgang.ToModel();
 
                 Buchung neu = new()
                 {
@@ -470,7 +467,7 @@ namespace ItreeNet.Services
             }
             else
             {
-                unsortedList = _mapper.Map<List<PipelineRuns>>(tPipelineRuns);
+                unsortedList = tPipelineRuns.Select(x => x.ToModel()!).ToList();
             }
 
             var res = new List<PipelineRuns>();
@@ -526,7 +523,7 @@ namespace ItreeNet.Services
                     await context.SaveChangesAsync();
                 }
 
-                list = _mapper.Map<List<PipelineRuns>>(saveNewList);
+                list = saveNewList.Select(x => x.ToModel()).ToList();
             }
 
             return list;
@@ -683,7 +680,7 @@ namespace ItreeNet.Services
                 .OrderByDescending(f => f.StartDatum)
                 .Take(take)
                 .ToListAsync();
-            return _mapper.Map<List<FrontendtestOverview>>(tFrontendtests);
+            return tFrontendtests.Select(x => x.ToOverview()).ToList();
         }
 
         public async Task<Frontendtest> GetFrontendtestDetailAsync(Guid id)
@@ -697,7 +694,7 @@ namespace ItreeNet.Services
                 .AsNoTracking()
                 .SingleOrDefaultAsync(f => f.Id == id)
                 ?? throw new InvalidDataException($"Frontendtest {id} nicht gefunden");
-            return _mapper.Map<Frontendtest>(tFrontendtests);
+            return tFrontendtests.ToModel();
         }
 
         public async Task DeleteFrontendtestsAsync(int take)

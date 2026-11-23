@@ -17,7 +17,6 @@
   </ItemGroup>
 
   <ItemGroup>
-	<PackageReference Include="AutoMapper" Version="17.0.0" />
 	<PackageReference Include="Azure.Communication.Email" Version="1.1.0" />
 	<PackageReference Include="FluentValidation" Version="12.2.0" />
 	<PackageReference Include="GemBox.Document" Version="2026.11.103" />
