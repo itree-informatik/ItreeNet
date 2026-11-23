@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+﻿using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
@@ -8,12 +8,10 @@ namespace ItreeNet.Services
 {
     public class MitarbeiterService : IMitarbeiterService
     {
-        private readonly IMapper _mapper;
         private readonly  IDbContextFactory<ZeiterfassungContext> _dbFactory;
 
-        public MitarbeiterService(IMapper mapper, IDbContextFactory<ZeiterfassungContext> dbFactory)
+        public MitarbeiterService(IDbContextFactory<ZeiterfassungContext> dbFactory)
         {
-            _mapper = mapper;
             _dbFactory = dbFactory;
         }
 
@@ -34,7 +32,7 @@ namespace ItreeNet.Services
                 .Select(t => new { t.MitarbeiterId, t.TeamId })
                 .ToListAsync();
 
-            var mitarbeiterList = _mapper.Map<List<Mitarbeiter>>(tAll);
+            var mitarbeiterList = tAll.Select(x => x.ToModel()).ToList();
             foreach (var mitarbeiter in mitarbeiterList)
                 mitarbeiter.TeamIds = allTeamIds.Where(t => t.MitarbeiterId == mitarbeiter.Id).Select(t => t.TeamId).ToList();
 
@@ -65,7 +63,7 @@ namespace ItreeNet.Services
                 .Select(t => new { t.MitarbeiterId, t.TeamId })
                 .ToListAsync();
 
-            var mitarbeiterList = _mapper.Map<List<Mitarbeiter>>(tAll);
+            var mitarbeiterList = tAll.Select(x => x.ToModel()).ToList();
             foreach (var mitarbeiter in mitarbeiterList)
                 mitarbeiter.TeamIds = allTeamIds.Where(t => t.MitarbeiterId == mitarbeiter.Id).Select(t => t.TeamId).ToList();
 
@@ -84,7 +82,7 @@ namespace ItreeNet.Services
                 throw new InvalidDataException("Employee not found");
             }
 
-            var mitarbeiter = _mapper.Map<Mitarbeiter>(tMitarbeiter);
+            var mitarbeiter = tMitarbeiter.ToModel();
             mitarbeiter.TeamIds = await context.TMitarbeiterTeam
                 .Where(m => m.MitarbeiterId == id)
                 .Select(t => t.TeamId)
@@ -106,12 +104,12 @@ namespace ItreeNet.Services
             {
                 model.Aktiv = true;
                 model.Id = Guid.NewGuid();
-                var tModel = _mapper.Map<TMitarbeiter>(model);
+                var tModel = model.ToEntity();
                 context.TMitarbeiter.Add(tModel);
             }
             else
             {
-                var tModel = _mapper.Map<TMitarbeiter>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
             }
 
@@ -130,12 +128,12 @@ namespace ItreeNet.Services
             {
                 model.Aktiv = true;
                 model.Id = Guid.NewGuid();
-                var tModel = _mapper.Map<TMitarbeiter>(model);
+                var tModel = model.ToEntity();
                 context.TMitarbeiter.Add(tModel);
             }
             else
             {
-                var tModel = _mapper.Map<TMitarbeiter>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
             }
 

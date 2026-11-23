@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+﻿using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
@@ -9,12 +9,10 @@ namespace ItreeNet.Services
     public class ArbeitszeitService : IArbeitszeitService
     {
         private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
-        private readonly IMapper _mapper;
 
-        public ArbeitszeitService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper)
+        public ArbeitszeitService(IDbContextFactory<ZeiterfassungContext> dbFactory)
         {
             _dbFactory = dbFactory;
-            _mapper = mapper;
         }
 
         public async Task<List<Arbeitszeit>> GetAllAsync()
@@ -27,7 +25,7 @@ namespace ItreeNet.Services
                 .ThenBy(a => a.Monat)
                 .ToListAsync();
 
-            return _mapper.Map<List<Arbeitszeit>>(tAll);
+            return tAll.Select(x => x.ToModel()).ToList();
         }
 
         public async Task<List<Arbeitszeit>> SaveAsync(Arbeitszeit model)
@@ -38,12 +36,12 @@ namespace ItreeNet.Services
             {
                 model.Id = Guid.NewGuid();
 
-                var tModel = _mapper.Map<TArbeitszeit>(model);
+                var tModel = model.ToEntity();
                 context.TArbeitszeit.Add(tModel);
             }
             else
             {
-                var tModel = _mapper.Map<TArbeitszeit>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
             }
 
@@ -55,7 +53,7 @@ namespace ItreeNet.Services
         public async Task<List<Arbeitszeit>> DeleteAsync(Arbeitszeit model)
         {
             await using var context = await _dbFactory.CreateDbContextAsync();
-            var tModel = _mapper.Map<TArbeitszeit>(model);
+            var tModel = model.ToEntity();
             context.TArbeitszeit.Remove(tModel);
             await context.SaveChangesAsync();
 

@@ -41,7 +41,6 @@ if (bosses == null)
 
 Globals.BossList = bosses;
 Globals.FileStorePath = builder.Configuration.GetValue<string>("File:Store");
-var autoMapperLicenseKey = builder.Configuration.GetValue<string>("LicenseKeys:AutoMapper")?.Trim();
 
 var connectionString = builder.Configuration.GetConnectionString("APP");
 
@@ -49,9 +48,6 @@ if (string.IsNullOrEmpty(connectionString))
 {
     throw new InvalidDataException("ConnectionString:APP is empty");
 }
-
-if (string.IsNullOrEmpty(autoMapperLicenseKey))
-    throw new InvalidOperationException("Missing license key for AutoMapper");
 
 // database
 builder.Services.AddDbContextFactory<ZeiterfassungContext>(opt =>
@@ -61,11 +57,6 @@ builder.Services.AddDbContextFactory<ZeiterfassungContext>(opt =>
 
 // services
 SerilogConfig.AddSerilogServices(builder.Services, builder.Configuration);
-
-builder.Services.AddAutoMapper(cfg => {
-        cfg.LicenseKey = autoMapperLicenseKey;
-        cfg.AddMaps(typeof(Program));
-    });
 
 builder.Services.AddScoped<IAnwesenheitService, AnwesenheitService>();
 builder.Services.AddScoped<IArbeitszeitService, ArbeitszeitService>();

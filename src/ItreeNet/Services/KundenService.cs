@@ -1,5 +1,5 @@
 ﻿using System.Security;
-using AutoMapper;
+using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
@@ -10,14 +10,12 @@ namespace ItreeNet.Services
     public class KundenService : IKundenService
     {
         private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
-        private readonly IMapper _mapper;
         private readonly UserService _userService;
         private readonly IMitarbeiterService _mitarbeiterService;
 
-        public KundenService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper, UserService userService, IMitarbeiterService mitarbeiterService)
+        public KundenService(IDbContextFactory<ZeiterfassungContext> dbFactory, UserService userService, IMitarbeiterService mitarbeiterService)
         {
             _dbFactory = dbFactory;
-            _mapper = mapper;
             _userService = userService;
             _mitarbeiterService = mitarbeiterService;
         }
@@ -31,7 +29,7 @@ namespace ItreeNet.Services
                                             .OrderBy(k => k.Kundenname)
                                             .ToListAsync();
 
-            return _mapper.Map<List<Kunde>>(tKunden);
+            return tKunden.Select(x => x.ToModel()).ToList();
         }
 
         public async Task<List<Kunde>> GetAllActiveAsync()
@@ -44,7 +42,7 @@ namespace ItreeNet.Services
                     .OrderBy(k => k.Kundenname)
                     .ToListAsync();
 
-            return _mapper.Map<List<Kunde>>(tKunden);
+            return tKunden.Select(x => x.ToModel()).ToList();
         }
 
         public async Task<List<Kunde>> GetAllActiveOfTeamAsync(Guid? mitarbeiterId, bool allCustomers = false)
@@ -77,7 +75,7 @@ namespace ItreeNet.Services
                     (x.TeamId != null && mitarbeiter.TeamIds.Contains(x.TeamId.Value)) || x.TeamId == null).ToList();
             }
 
-            return _mapper.Map<List<Kunde>>(tKunden);
+            return tKunden.Select(x => x.ToModel()).ToList();
         }
 
         public async Task<Kunde> GetAsync(Guid kundenId)
@@ -87,7 +85,7 @@ namespace ItreeNet.Services
             var tKunde = await context.TKunde.AsNoTracking().SingleOrDefaultAsync(x => x.Id == kundenId)
                 ?? throw new InvalidDataException($"Kunde {kundenId} nicht gefunden");
 
-            return _mapper.Map<Kunde>(tKunde);
+            return tKunde.ToModel();
         }
 
         public async Task<List<Kunde>> SaveAsync(Kunde model)
@@ -115,7 +113,7 @@ namespace ItreeNet.Services
                 model.Id = Guid.NewGuid();
                 model.Aktiv = true;
 
-                var tNeu = _mapper.Map<TKunde>(model);
+                var tNeu = model.ToEntity();
                 context.TKunde.Add(tNeu);
 
                 await context.SaveChangesAsync();
@@ -128,7 +126,7 @@ namespace ItreeNet.Services
                 .Select(k => new { k.Aktiv, k.Intern })
                 .SingleOrDefaultAsync();
 
-            var tModel = _mapper.Map<TKunde>(model);
+            var tModel = model.ToEntity();
             context.Entry(tModel).State = EntityState.Modified;
 
             await context.SaveChangesAsync();
@@ -157,7 +155,7 @@ namespace ItreeNet.Services
                     .SingleOrDefaultAsync();
 
                 model.Aktiv = false;
-                var tModel = _mapper.Map<TKunde>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
                 await context.SaveChangesAsync();
 
@@ -168,7 +166,7 @@ namespace ItreeNet.Services
             }
             else
             {
-                var tModel = _mapper.Map<TKunde>(model);
+                var tModel = model.ToEntity();
                 context.TKunde.Remove(tModel);
                 await context.SaveChangesAsync();
             }

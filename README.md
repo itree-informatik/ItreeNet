@@ -12,7 +12,7 @@ Interne Webanwendung zur **Zeiterfassung, Kunden- und Mitarbeiterverwaltung** de
 | Authentifizierung | Azure AD (Microsoft Identity Web / OIDC) |
 | Logging | Serilog (Console + PostgreSQL) |
 | Validierung | FluentValidation |
-| Mapping | AutoMapper |
+| Mapping | Handgeschriebene Extension-Methoden (`Data/Extensions/Mappings.cs`) |
 | Dokumentenerzeugung | GemBox.Document, ClosedXML |
 | E-Mail | Azure Communication Services |
 | Deployment | Docker Container → Azure Web App |
@@ -24,7 +24,6 @@ Interne Webanwendung zur **Zeiterfassung, Kunden- und Mitarbeiterverwaltung** de
 - PostgreSQL-Instanz
 - Zugriff auf den GitHub-Packages-Feed `itree-informatik` (liefert das NuGet-Paket **ItreeMud**; Feed lokal in der globalen NuGet-Konfiguration registrieren)
 - [Azure AD](https://portal.azure.com/) — App-Registrierung mit OIDC-Konfiguration
-- **AutoMapper Lizenz** — kommerzieller Lizenzschlüssel erforderlich ([automapper.org](https://automapper.org/))
 - **GemBox.Document Lizenz** — kommerzieller Lizenzschlüssel für Dokumentenerzeugung ([gemboxsoftware.com](https://www.gemboxsoftware.com/))
 
 ### User Secrets konfigurieren
@@ -61,7 +60,6 @@ Struktur der `secrets.json` (Beispielwerte):
     "UpdateInHours": "2"
   },
   "LicenseKeys": {
-    "AutoMapper": "your-automapper-license-key",
     "GemBox": "your-gembox-license-key"
   }
 }
@@ -102,7 +100,7 @@ src/ItreeNet/
 │   │   └── DB/             # EF Core Entities (T-Präfix, z. B. TMitarbeiter)
 │   ├── Enums/              # Enum-Definitionen
 │   ├── Validators/         # FluentValidation-Regeln
-│   └── Extensions/         # AutoMapper-Profile, Hilfsmethoden
+│   └── Extensions/         # Mappings (Entity ↔ Model), Hilfsmethoden
 ├── Middleware/             # UserInfoClaims (Azure AD → IsIntern)
 └── wwwroot/                # Statische Dateien
 ```

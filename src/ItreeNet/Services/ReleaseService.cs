@@ -1,5 +1,4 @@
-using AutoMapper;
-using AutoMapper.QueryableExtensions;
+using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
@@ -7,10 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ItreeNet.Services;
 
-public class ReleaseService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper) : IReleaseService
+public class ReleaseService(IDbContextFactory<ZeiterfassungContext> dbFactory) : IReleaseService
 {
     private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory = dbFactory;
-    private readonly IMapper _mapper = mapper;
 
     public async Task<List<Release>> GetAllAsync(DateOnly? von = null, DateOnly? bis = null)
     {
@@ -24,7 +22,7 @@ public class ReleaseService(IDbContextFactory<ZeiterfassungContext> dbFactory, I
             .Where(r => r.Datum >= vonDatum && r.Datum <= bisDatum)
             .OrderBy(r => r.Datum)
             .ThenBy(r => r.Applikation.Bezeichnung)
-            .ProjectTo<Release>(_mapper.ConfigurationProvider)
+            .Select(Mappings.ReleaseProjection)
             .ToListAsync();
     }
 
@@ -44,7 +42,7 @@ public class ReleaseService(IDbContextFactory<ZeiterfassungContext> dbFactory, I
                 n => new { n.ApplikationId, Datum = n.MinDatum },
                 (r, _) => r)
             .OrderBy(r => r.Datum)
-            .ProjectTo<Release>(_mapper.ConfigurationProvider)
+            .Select(Mappings.ReleaseProjection)
             .ToListAsync();
     }
 

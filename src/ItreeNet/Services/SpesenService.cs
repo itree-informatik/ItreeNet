@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+﻿using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
@@ -9,12 +9,10 @@ namespace ItreeNet.Services
     public class SpesenService : ISpesenService
     {
         private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
-        private readonly IMapper _mapper;
 
-        public SpesenService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper)
+        public SpesenService(IDbContextFactory<ZeiterfassungContext> dbFactory)
         {
             _dbFactory = dbFactory;
-            _mapper = mapper;
             
         }
 
@@ -44,14 +42,14 @@ namespace ItreeNet.Services
                 .OrderBy(s => s.Datum)
                 .ToListAsync();
 
-            return _mapper.Map<List<Spesen>>(list);
+            return list.Select(x => x.ToModel()).ToList();
         }
 
         public async Task<List<Spesen>> InsertSpesenAsync(Spesen spesen)
         {
             await using var context = await _dbFactory.CreateDbContextAsync();
             spesen.Id = Guid.NewGuid();
-            var tSpesen = _mapper.Map<TSpesen>(spesen);
+            var tSpesen = spesen.ToEntity();
             context.TSpesen.Add(tSpesen);
             await context.SaveChangesAsync();
 
@@ -61,7 +59,7 @@ namespace ItreeNet.Services
         public async Task<List<Spesen>> UpdateSpesenAsync(Spesen spesen)
         {
             await using var context = await _dbFactory.CreateDbContextAsync();
-            var tSpesen = _mapper.Map<TSpesen>(spesen);
+            var tSpesen = spesen.ToEntity();
 
             context.Entry(tSpesen).State = EntityState.Modified;
             await context.SaveChangesAsync();
@@ -72,7 +70,7 @@ namespace ItreeNet.Services
         public async Task<List<Spesen>> DeleteSpesenAsync(Spesen spesen)
         {
             await using var context = await _dbFactory.CreateDbContextAsync();
-            var tSpesen = _mapper.Map<TSpesen>(spesen);
+            var tSpesen = spesen.ToEntity();
 
             context.TSpesen.Remove(tSpesen);
             await context.SaveChangesAsync();

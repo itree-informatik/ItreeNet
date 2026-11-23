@@ -1,5 +1,5 @@
-﻿using AutoMapper;
-using ItreeNet.Data.Enums;
+﻿using ItreeNet.Data.Enums;
+using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
@@ -10,12 +10,10 @@ namespace ItreeNet.Services
     public class ProjektService : IProjektService
     {
         private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
-        private readonly IMapper _mapper;
 
-        public ProjektService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper)
+        public ProjektService(IDbContextFactory<ZeiterfassungContext> dbFactory)
         {
             _dbFactory = dbFactory;
-            _mapper = mapper;
         }
 
         public async Task<List<Projekt>> GetAllAsync()
@@ -28,7 +26,7 @@ namespace ItreeNet.Services
                 .OrderBy(p => p.Bezeichnung)
                 .ToListAsync();
 
-            return _mapper.Map<List<Projekt>>(tProjekte);
+            return tProjekte.Select(x => x.ToModel()).ToList();
         }
 
         public async Task<List<Projekt>> GetAllActiveAsync()
@@ -40,7 +38,7 @@ namespace ItreeNet.Services
                 .Where(x => x.Aktiv == true)
                 .ToListAsync();
 
-            return _mapper.Map<List<Projekt>>(tProjekte);
+            return tProjekte.Select(x => x.ToModel()).ToList();
         }
 
         public async Task<List<Projekt>> ProjectsByCustomerIdAsync(Guid? clientId, EnumStatus status = EnumStatus.Aktiv)
@@ -68,7 +66,7 @@ namespace ItreeNet.Services
                     break;
             }
 
-            return _mapper.Map<List<Projekt>>(tProjekte);
+            return tProjekte.Select(x => x.ToModel()).ToList();
         }
 
         public async Task<List<Projekt>> AllProjectsByCustomerIdAsync(Guid? clientId)
@@ -86,7 +84,7 @@ namespace ItreeNet.Services
                 .OrderBy(p => p.Bezeichnung)
                 .ToListAsync();
 
-            return _mapper.Map<List<Projekt>>(tProjekte);
+            return tProjekte.Select(x => x.ToModel()).ToList();
         }
         
         public async Task<List<Projekt>> SaveAsync(Projekt model)
@@ -113,7 +111,7 @@ namespace ItreeNet.Services
             {
                 model.Id = Guid.NewGuid();
 
-                var tNeu = _mapper.Map<TProjekt>(model);
+                var tNeu = model.ToEntity();
                 context.TProjekt.Add(tNeu);
 
                 await context.SaveChangesAsync();
@@ -126,7 +124,7 @@ namespace ItreeNet.Services
                 .Select(p => new { p.Aktiv, KundeIntern = p.Kunde.Intern })
                 .SingleOrDefaultAsync();
 
-            var tModel = _mapper.Map<TProjekt>(model);
+            var tModel = model.ToEntity();
             context.Entry(tModel).State = EntityState.Modified;
 
             await context.SaveChangesAsync();
@@ -155,7 +153,7 @@ namespace ItreeNet.Services
                     .SingleOrDefaultAsync();
 
                 model.Aktiv = false;
-                var tModel = _mapper.Map<TProjekt>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
                 await context.SaveChangesAsync();
 
@@ -166,7 +164,7 @@ namespace ItreeNet.Services
             }
             else
             {
-                var tModel = _mapper.Map<TProjekt>(model);
+                var tModel = model.ToEntity();
                 context.TProjekt.Remove(tModel);
                 await context.SaveChangesAsync();
             }

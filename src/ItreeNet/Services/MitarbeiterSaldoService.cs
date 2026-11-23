@@ -1,5 +1,5 @@
-﻿using AutoMapper;
-using ItreeNet.Data.Models.DB;
+﻿using ItreeNet.Data.Models.DB;
+using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -9,12 +9,10 @@ namespace ItreeNet.Services
     public class MitarbeiterSaldoService : IMitarbeiterSaldoService
     {
         private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
-        private readonly IMapper _mapper;
 
-        public MitarbeiterSaldoService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper)
+        public MitarbeiterSaldoService(IDbContextFactory<ZeiterfassungContext> dbFactory)
         {
             _dbFactory = dbFactory;
-            _mapper = mapper;
         }
 
         public async Task<List<MitarbeiterSaldo>> GetAllAsync(Guid mitarbeiterId)
@@ -27,7 +25,7 @@ namespace ItreeNet.Services
                 .OrderByDescending(f => f.Jahr).ThenByDescending(f => f.Monat)
                 .ToListAsync();
 
-            return _mapper.Map<List<MitarbeiterSaldo>>(tMitarbeiterSaldo);
+            return tMitarbeiterSaldo.Select(x => x.ToModel()).ToList();
         }
 
         public async Task<List<MitarbeiterSaldo>> SaveAsync(MitarbeiterSaldo model)
@@ -38,12 +36,12 @@ namespace ItreeNet.Services
             {
                 model.Id = Guid.NewGuid();
 
-                var tModel = _mapper.Map<TMitarbeiterSaldo>(model);
+                var tModel = model.ToEntity();
                 context.TMitarbeiterSaldo.Add(tModel);
             }
             else
             {
-                var tModel = _mapper.Map<TMitarbeiterSaldo>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
             }
 

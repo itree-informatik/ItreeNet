@@ -1,5 +1,4 @@
-using AutoMapper;
-using AutoMapper.QueryableExtensions;
+using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Data.Models.DB;
 using ItreeNet.Interfaces;
@@ -7,10 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ItreeNet.Services;
 
-public class ApplikationService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper) : IApplikationService
+public class ApplikationService(IDbContextFactory<ZeiterfassungContext> dbFactory) : IApplikationService
 {
     private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory = dbFactory;
-    private readonly IMapper _mapper = mapper;
 
     public async Task<List<Applikation>> GetAllAsync()
     {
@@ -18,7 +16,7 @@ public class ApplikationService(IDbContextFactory<ZeiterfassungContext> dbFactor
 
         return await context.TApplikation
             .OrderBy(a => a.Bezeichnung)
-            .ProjectTo<Applikation>(_mapper.ConfigurationProvider)
+            .Select(Mappings.ApplikationProjection)
             .ToListAsync();
     }
 

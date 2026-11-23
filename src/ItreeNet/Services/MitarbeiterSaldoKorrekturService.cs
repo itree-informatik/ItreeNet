@@ -1,5 +1,5 @@
-﻿using AutoMapper;
-using ItreeNet.Data.Models.DB;
+﻿using ItreeNet.Data.Models.DB;
+using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using ItreeNet.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -9,12 +9,10 @@ namespace ItreeNet.Services
     public class MitarbeiterSaldoKorrekturService : IMitarbeiterSaldoKorrekturService
     {
         private readonly IDbContextFactory<ZeiterfassungContext> _dbFactory;
-        private readonly IMapper _mapper;
 
-        public MitarbeiterSaldoKorrekturService(IDbContextFactory<ZeiterfassungContext> dbFactory, IMapper mapper)
+        public MitarbeiterSaldoKorrekturService(IDbContextFactory<ZeiterfassungContext> dbFactory)
         {
             _dbFactory = dbFactory;
-            _mapper = mapper;
         }
 
         public async Task<List<MitarbeiterSaldoKorrektur>> GetAllAsync(Guid mitarbeiterId)
@@ -28,7 +26,7 @@ namespace ItreeNet.Services
                 .OrderByDescending(f => f.Jahr).ThenByDescending(f => f.Monat)
                 .ToListAsync();
 
-            return _mapper.Map<List<MitarbeiterSaldoKorrektur>>(tMitarbeiterSaldoKorrektur);
+            return tMitarbeiterSaldoKorrektur.Select(x => x.ToModel()).ToList();
         }
 
         public async Task<List<MitarbeiterSaldoKorrektur>> SaveAsync(MitarbeiterSaldoKorrektur model)
@@ -39,12 +37,12 @@ namespace ItreeNet.Services
             {
                 model.Id = Guid.NewGuid();
 
-                var tModel = _mapper.Map<TMitarbeiterSaldoKorrektur>(model);
+                var tModel = model.ToEntity();
                 context.TMitarbeiterSaldoKorrektur.Add(tModel);
             }
             else
             {
-                var tModel = _mapper.Map<TMitarbeiterSaldoKorrektur>(model);
+                var tModel = model.ToEntity();
                 context.Entry(tModel).State = EntityState.Modified;
             }
 

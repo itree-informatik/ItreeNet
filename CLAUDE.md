@@ -22,7 +22,7 @@ docker build -f src/Dockerfile -t itreenet src/
 
 **NuGet:** `src/nuget.config` enthält nur nuget.org. Das Paket `ItreeMud` kommt vom GitHub-Packages-Feed `itree-informatik` — die CI fügt ihn per `dotnet nuget add source` hinzu; lokal muss er in der globalen NuGet-Konfiguration vorhanden sein.
 
-**Start-Voraussetzungen:** User Secrets mit `ConnectionStrings:APP` (PostgreSQL), `AzureAd`, `Bosses`, `File:Store` und `LicenseKeys` (AutoMapper **und** GemBox sind Pflicht — `Program.cs` wirft sonst beim Start). Beispielstruktur der `secrets.json` steht im README.
+**Start-Voraussetzungen:** User Secrets mit `ConnectionStrings:APP` (PostgreSQL), `AzureAd`, `Bosses`, `File:Store` und `LicenseKeys:GemBox` (für die Dokumenterzeugung im `DokumentService`). Beispielstruktur der `secrets.json` steht im README.
 
 ## Architektur
 
@@ -33,7 +33,7 @@ Alles liegt in einem Projekt; pro Feature existiert diese Kette:
 ```
 Data/Models/DB/T{Name}.cs        EF-Entity (T-Präfix, DB-first, kein EF-Migrations)
 Data/Models/{Name}.cs            Domain-Model (ohne Präfix)
-Data/Extensions/Mappings.cs      EIN zentrales AutoMapper-Profil für alle Mappings
+Data/Extensions/Mappings.cs      handgeschriebene Mappings: ToModel()/ToEntity() je Entity (kein AutoMapper)
 Data/Validators/{Name}Validator.cs   FluentValidation
 Interfaces/I{Name}Service.cs  →  Services/{Name}Service.cs
 Program.cs                       manuelle Scoped-Registrierung jedes Services
@@ -75,4 +75,4 @@ Es gibt **kein** generisches `BaseActionService`/`BaseActionController`-Muster w
 
 ## CI/CD
 
-`.github/workflows/build.yml`, vier Stufen: Versioning (Patch aus `release-1.0.*`-Git-Tags) → Build → Publish (nur main: Docker → Azure Container Registry, SBOM via CycloneDX/syft → Dependency-Track, Release-Tag) → Deploy (Neustart der Azure Web App `itree-website`).
+`.github/workflows/build.yml`, vier Stufen: Versioning (`MAJOR`/`MINOR` in `build.yml`, aktuell 1.1; Patch aus `release-1.1.*`-Git-Tags) → Build → Publish (nur main: Docker → Azure Container Registry, SBOM via CycloneDX/syft → Dependency-Track, Release-Tag) → Deploy (Neustart der Azure Web App `itree-website`).
