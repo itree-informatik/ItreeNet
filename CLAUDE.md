@@ -75,4 +75,4 @@ Es gibt **kein** generisches `BaseActionService`/`BaseActionController`-Muster w
 
 ## CI/CD
 
-`.github/workflows/build.yml`, vier Stufen: Versioning (Patch aus `release-1.0.*`-Git-Tags) → Build → Publish (nur main: Docker → Azure Container Registry, SBOM via CycloneDX/syft → Dependency-Track, Release-Tag) → Deploy (Neustart der Azure Web App `itree-website`).
+`.github/workflows/build.yml`, vier Stufen: Versioning (`MAJOR`/`MINOR` in `build.yml`, aktuell 1.1; Patch aus `release-1.1.*`-Git-Tags) → Build → Publish (nur main: Docker → Azure Container Registry, SBOM via CycloneDX/syft → Dependency-Track, Release-Tag) → Deploy (Neustart der Azure Web App `itree-website`).
