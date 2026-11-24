@@ -398,7 +398,6 @@ else
         _datePickerValue = newList.OrderBy(t => t.Date).First().Date;
 
         RestoreUncollapseddDates();
-        StateHasChanged();
     }
 
     private void StoreUncollapsedDates()
@@ -483,7 +482,6 @@ else
     private async Task OnAnwesenheitChanged()
     {
         await LoadAnwesenheit();
-        StateHasChanged();
     }
 
     private async Task TransferDayToAnwesenheit(Buchungstag day)
@@ -532,7 +530,6 @@ else
                 timeBooking.IsCollapsed = _totalCollapsed;
             }
         }
-        StateHasChanged();
     }
 
     private void OpenDialog(string type, Buchung buchung, Buchungstag? buchungstag = null)
@@ -644,7 +641,6 @@ else
             RestoreUncollapseddDates();
         }
         _isVisibleDeleteConfirm = false;
-        StateHasChanged();
     }
     #endregion
 

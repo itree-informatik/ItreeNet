@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using ItreeNet.Data.Extensions;
 using ItreeNet.Data.Models;
 using Microsoft.JSInterop;
 
@@ -15,7 +16,7 @@ public partial class Reports
         {
             await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
             using var streamRef = new DotNetStreamReference(stream: stream);
-            await JsRuntime.InvokeVoidAsync("DownloadFileFromStream", Path.GetFileName(filePath), streamRef);
+            await JsRuntime.TryInvokeVoidAsync("DownloadFileFromStream", Path.GetFileName(filePath), streamRef);
         }
     }
 
@@ -157,6 +158,6 @@ public partial class Reports
         }
 
         var base64 = Convert.ToBase64String(fileBytes);
-        await JsRuntime.InvokeVoidAsync("DownloadFileFromBase64", filename, base64);
+        await JsRuntime.TryInvokeVoidAsync("DownloadFileFromBase64", filename, base64);
     }
 }

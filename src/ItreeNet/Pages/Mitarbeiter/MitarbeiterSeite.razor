@@ -342,7 +342,7 @@ else
     {
         if (firstRender)
         {
-            await JsRuntime.InvokeVoidAsync("FocusElementById", "textbox_vorname");
+            await JsRuntime.TryInvokeVoidAsync("FocusElementById", "textbox_vorname");
         }
     }
 
@@ -493,6 +493,5 @@ else
             }
         }
         _isVisibleCancelConfirm = false;
-        StateHasChanged();
     }
 }

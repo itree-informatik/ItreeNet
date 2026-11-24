@@ -194,7 +194,7 @@
     private async Task ApplyTheme(bool isStartup = false)
     {
         _isDarkMode = Benutzer!.ThemeMode == EnumThemeMode.Dark;
-        await JsRuntime.InvokeVoidAsync("themeChanger.changeCss", _isDarkMode ? "dark" : "light");
+        await JsRuntime.TryInvokeVoidAsync("themeChanger.changeCss", _isDarkMode ? "dark" : "light");
 
         if (!isStartup)
         {

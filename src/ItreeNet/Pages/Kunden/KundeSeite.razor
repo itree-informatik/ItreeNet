@@ -586,7 +586,6 @@ else
         _buchungen = null;
         _showBuchungen = true;
         await ScrollTo("box_buchungen");
-        StateHasChanged();
     }
 
     private async Task LoadBuchungen()
@@ -596,17 +595,16 @@ else
         var von = _buchungenVon.HasValue ? DateOnly.FromDateTime(_buchungenVon.Value) : (DateOnly?)null;
         var bis = _buchungenBis.HasValue ? DateOnly.FromDateTime(_buchungenBis.Value) : (DateOnly?)null;
         _buchungen = await BuchungsService.SucheBuchungAsync(null, null, _selectedKunde.Id, _selectedProjekt.Id, _selectedAktivitaet.Id, von, bis);
-        StateHasChanged();
     }
 
     private async Task ScrollTo(string elementId)
     {
-        await JsRuntime.InvokeVoidAsync("ScrollToElementId", elementId);
+        await JsRuntime.TryInvokeVoidAsync("ScrollToElementId", elementId);
     }
 
     private async Task FocusOn(string elementId)
     {
-        await JsRuntime.InvokeVoidAsync("FocusElementById", elementId);
+        await JsRuntime.TryInvokeVoidAsync("FocusElementById", elementId);
     }
 
     private void Delete(object model)
@@ -640,7 +638,6 @@ else
             }
         }
         _isVisibleDeleteConfirm = false;
-        StateHasChanged();
     }
 
     /// <summary>
@@ -655,6 +652,5 @@ else
             return;
         }
         _isVisibleCancelConfirm = false;
-        StateHasChanged();
     }
 }

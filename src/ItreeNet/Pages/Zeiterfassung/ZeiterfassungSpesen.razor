@@ -192,7 +192,7 @@ else
         {
             var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
             using var streamRef = new DotNetStreamReference(stream: stream);
-            await JsRuntime.InvokeVoidAsync("DownloadFileFromStream", Path.GetFileName(filePath), streamRef);
+            await JsRuntime.TryInvokeVoidAsync("DownloadFileFromStream", Path.GetFileName(filePath), streamRef);
         }
         await GetSpesen();
         _fileIsLoading = false;

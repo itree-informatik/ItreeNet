@@ -351,7 +351,6 @@ else
                 _showReleaseWindow = false;
                 break;
         }
-        StateHasChanged();
     }
 
     private void OnClose()
@@ -395,7 +394,6 @@ else
             }
         }
         _isVisibleDeleteConfirm = false;
-        StateHasChanged();
     }
 
     /// <summary>
@@ -426,7 +424,6 @@ else
             }
         }
         _isVisibleCancelConfirm = false;
-        StateHasChanged();
     }
 
     private void OpenDialog<T>(T obj, string action)
