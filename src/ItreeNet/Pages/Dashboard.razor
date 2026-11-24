@@ -990,7 +990,7 @@
 
     private async Task OpenLink(string url)
     {
-        await JsRuntime.InvokeVoidAsync("OpenLink", url);
+        await JsRuntime.TryInvokeVoidAsync("OpenLink", url);
     }
 
     private async Task<decimal> GetFerienSaldo(bool aktuell)
@@ -1033,7 +1033,6 @@
     {
         _teamPerformances = await DashboardService.GetTeamProductivity(_mitarbeiterId, PerformanceJahr);
         _personalPerformance = await DashboardService.GetProductivity(PerformanceMitarbeiterId, PerformanceJahr);
-        StateHasChanged();
     }
 
     private async Task GenerateExcel()
@@ -1084,7 +1083,7 @@
         var base64 = Convert.ToBase64String(fileBytes);
         var filename = $"Export_Projekt_Buchungen_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
 
-        await JsRuntime.InvokeVoidAsync("DownloadFileFromBase64", filename, base64);
+        await JsRuntime.TryInvokeVoidAsync("DownloadFileFromBase64", filename, base64);
     }
 
     private async Task ShowDetail(FrontendtestOverview test)
@@ -1110,7 +1109,7 @@
 
     private async Task OpenInNewTab(string base64)
     {
-        await JsRuntime.InvokeVoidAsync("openBase64Image", base64);
+        await JsRuntime.TryInvokeVoidAsync("openBase64Image", base64);
     }
 
     private void ShowInModal(string text)
@@ -1140,7 +1139,7 @@
 
     private async Task CopyToClipboard()
     {
-        await JsRuntime.InvokeVoidAsync("CopyToClipboard", _detailText);
+        await JsRuntime.TryInvokeVoidAsync("CopyToClipboard", _detailText);
     }
 
     private void ToggleProvisorisch(Guid id, bool selected)
@@ -1162,6 +1161,5 @@
         await BuchungsService.SetNichtProvisorischAsync(_selectedProvisorische.ToList());
         _selectedProvisorische.Clear();
         _provisorischeBuchungen = await DashboardService.GetProvisorischeBuchungenAsync();
-        StateHasChanged();
     }
 }

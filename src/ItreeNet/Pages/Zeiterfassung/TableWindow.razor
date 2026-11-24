@@ -441,7 +441,6 @@
             await OnValidSubmit.InvokeAsync(newList);
         }
         _buttonIsLoading = false;
-        StateHasChanged();
     }
 
     private async Task CloseWindow()
@@ -453,7 +452,6 @@
         else
         {
             _loaded = false;
-            StateHasChanged();
             OriginalItem = null;
             Buchung = null;
             await BuchungChanged.InvokeAsync(null);
@@ -475,12 +473,10 @@
         if (shouldCancel)
         {
             _loaded = false;
-            StateHasChanged();
             OriginalItem = null;
             Buchung = null;
             await BuchungChanged.InvokeAsync(null);
         }
         _isVisibleCancelConfirm = false;
-        StateHasChanged();
     }
 }
