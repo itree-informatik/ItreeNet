@@ -34,6 +34,30 @@ namespace ItreeNet.Services
 
             var weeklyWorkload = (5 * arbeitszeit.Tagesarbeitszeit) * (ferienArbeitspensum.Arbeitspensum / 100);
 
+            // Feiertagsreduktionen der Woche abziehen (gleiche Regeln wie GetMonthlyWorkloadByEmployeeAsync)
+            var datumBis = date.AddDays(6);
+            var reduktionenDict = await context.TArbeitszeitReduktion
+                .AsNoTracking()
+                .Where(a => a.Datum >= date && a.Datum <= datumBis)
+                .ToDictionaryAsync(a => a.Datum, a => a.Reduktion);
+
+            foreach (var (tag, reduktion) in reduktionenDict)
+            {
+                if (!IstArbeitstag(ferienArbeitspensum, tag.DayOfWeek))
+                {
+                    continue;
+                }
+
+                var reduktionsValue = reduktion;
+                if (reduktionsValue > 0 && ferienArbeitspensum.Arbeitspensum != 100 && ferienArbeitspensum.Montag && ferienArbeitspensum.Dienstag &&
+                    ferienArbeitspensum.Mittwoch && ferienArbeitspensum.Donnerstag && ferienArbeitspensum.Freitag)
+                {
+                    reduktionsValue *= ferienArbeitspensum.Arbeitspensum / 100;
+                }
+
+                weeklyWorkload -= reduktionsValue;
+            }
+
             var weeklyWorkloadString = weeklyWorkload.ToString(CultureInfo.InvariantCulture);
             var weeklyWorkloadSubstring = weeklyWorkloadString.Split(".").Last();
             var digits = int.Parse(weeklyWorkloadSubstring);
