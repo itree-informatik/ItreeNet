@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Interne Webanwendung der itree GmbH für Zeiterfassung, Kunden- und Mitarbeiterverwaltung. **Blazor Server** (.NET 10) mit MudBlazor/ItreeMud, PostgreSQL und Azure-AD-Login.
+Interne Webanwendung der itree GmbH für Zeiterfassung, Kunden- und Mitarbeiterverwaltung. **Blazor Server** (.NET 11) mit MudBlazor/ItreeMud, PostgreSQL und Azure-AD-Login.
 
 **Achtung — weicht vom Muster der Schwesterprojekte ab** (siehe `C:\repos\CLAUDE.md`): kein ItreeBlazor-Framework, kein Telerik, kein WASM, keine 5-Projekt-Struktur. Ein einziges Projekt (`src/ItreeNet/ItreeNet.csproj`), Solution im `.slnx`-Format (XML — keine Text-Manipulation, `dotnet sln`/`XDocument` verwenden), alles läuft serverseitig über SignalR — keine separate Web-API (einziger Controller: `LoginController`).
 
@@ -75,4 +75,4 @@ Es gibt **kein** generisches `BaseActionService`/`BaseActionController`-Muster w
 
 ## CI/CD
 
-`.github/workflows/build.yml`, vier Stufen: Versioning (`MAJOR`/`MINOR` in `build.yml`, aktuell 1.1; Patch aus `release-1.1.*`-Git-Tags) → Build → Publish (nur main: Docker → Azure Container Registry, SBOM via CycloneDX/syft → Dependency-Track, Release-Tag) → Deploy (Neustart der Azure Web App `itree-website`).
+`.github/workflows/build.yml`, vier Stufen: Versioning (`MAJOR`/`MINOR` in `build.yml`, aktuell 1.2; Patch aus `release-1.2.*`-Git-Tags) → Build → Publish (nur main: Docker → Azure Container Registry, SBOM via CycloneDX/syft → Dependency-Track, Release-Tag) → Deploy (Neustart der Azure Web App `itree-website`).

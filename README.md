@@ -6,9 +6,9 @@ Interne Webanwendung zur **Zeiterfassung, Kunden- und Mitarbeiterverwaltung** de
 
 | Komponente | Technologie |
 |---|---|
-| Frontend & Backend | **Blazor Server** (.NET 10) |
+| Frontend & Backend | **Blazor Server** (.NET 11) |
 | UI-Framework | MudBlazor 9 + ItreeMud (hauseigene Komponentenbibliothek) |
-| Datenbank | PostgreSQL (EF Core 10 / Npgsql) |
+| Datenbank | PostgreSQL (EF Core 11 / Npgsql) |
 | Authentifizierung | Azure AD (Microsoft Identity Web / OIDC) |
 | Logging | Serilog (Console + PostgreSQL) |
 | Validierung | FluentValidation |
@@ -20,7 +20,7 @@ Interne Webanwendung zur **Zeiterfassung, Kunden- und Mitarbeiterverwaltung** de
 
 ## Voraussetzungen
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download)
+- [.NET 11 SDK](https://dotnet.microsoft.com/download)
 - PostgreSQL-Instanz
 - Zugriff auf den GitHub-Packages-Feed `itree-informatik` (liefert das NuGet-Paket **ItreeMud**; Feed lokal in der globalen NuGet-Konfiguration registrieren)
 - [Azure AD](https://portal.azure.com/) — App-Registrierung mit OIDC-Konfiguration

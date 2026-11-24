@@ -1,5 +1,5 @@
 ## BUILD
-FROM mcr.microsoft.com/dotnet/sdk:10.0-noble AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0-resolute AS build
 WORKDIR /src
 
 ARG proj="**/ItreeNet.csproj"
@@ -26,7 +26,7 @@ COPY . .
 RUN dotnet publish $proj -c Release -o /app/publish -p:Version=$ASSEMBLY_VERSION -p:InformationalVersion=$ASSEMBLY_INFO_VERSION
 
 ## RUN
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS base
+FROM mcr.microsoft.com/dotnet/aspnet:11.0-resolute AS base
 WORKDIR /app
 
 ARG GEMBOX_LICENSEKEY
